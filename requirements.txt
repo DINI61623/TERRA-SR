@@ -1,0 +1,23 @@
+# API and Configuration
+requests
+python-dotenv
+
+# Data Analysis & Science
+numpy
+pandas
+matplotlib
+
+# Geospatial Processing
+shapely
+fiona
+pyproj
+rasterio
+geopandas
+
+# Computer Vision & Image Processing
+opencv-python-headless
+pillow
+
+# Deep Learning (Super Resolution & Oil Spill Detection)
+torch
+torchvision

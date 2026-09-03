@@ -1,0 +1,92 @@
+{
+    "Bilinear (Baseline)": {
+        "psnr": 37.55,
+        "ssim": 0.9203,
+        "mae": 0.00966,
+        "rmse": 0.01439,
+        "sam_deg": 1.41,
+        "ergas": 2.95,
+        "epi": 0.9526,
+        "ndvi_mae": 0.0201
+    },
+    "ESPCN (Exp 1)": {
+        "psnr": 39.44,
+        "ssim": 0.9511,
+        "mae": 0.00786,
+        "rmse": 0.0116,
+        "sam_deg": 1.25,
+        "ergas": 2.38,
+        "epi": 0.9776,
+        "ndvi_mae": 0.0165
+    },
+    "Residual CNN (Exp 3)": {
+        "psnr": 39.79,
+        "ssim": 0.9541,
+        "mae": 0.00752,
+        "rmse": 0.01109,
+        "sam_deg": 1.21,
+        "ergas": 2.27,
+        "epi": 0.9799,
+        "ndvi_mae": 0.0158
+    },
+    "MS-RCAN (Exp 4D)": {
+        "psnr": 39.66,
+        "ssim": 0.9535,
+        "mae": 0.00761,
+        "rmse": 0.0113,
+        "sam_deg": 1.23,
+        "ergas": 2.31,
+        "epi": 0.9792,
+        "ndvi_mae": 0.0162
+    },
+    "EXP-A (Baseline MSE)": {
+        "psnr": 35.4,
+        "ssim": 0.8886,
+        "mae": 0.01263,
+        "rmse": 0.01799,
+        "sam_deg": 2.45,
+        "ergas": 3.81,
+        "epi": 0.9468,
+        "ndvi_mae": 0.0311
+    },
+    "EXP-B (Charbonnier)": {
+        "psnr": 36.3,
+        "ssim": 0.9167,
+        "mae": 0.01135,
+        "rmse": 0.01628,
+        "sam_deg": 2.08,
+        "ergas": 3.45,
+        "epi": 0.9579,
+        "ndvi_mae": 0.0283
+    },
+    "EXP-C (Charb+SSIM+SAM)": {
+        "psnr": 37.22,
+        "ssim": 0.9321,
+        "mae": 0.01015,
+        "rmse": 0.01464,
+        "sam_deg": 1.86,
+        "ergas": 3.08,
+        "epi": 0.9667,
+        "ndvi_mae": 0.0251
+    },
+    "EXP-D (PSF+Laplacian)": {
+        "psnr": 36.92,
+        "ssim": 0.9261,
+        "mae": 0.01047,
+        "rmse": 0.01513,
+        "sam_deg": 1.9,
+        "ergas": 3.14,
+        "epi": 0.9633,
+        "ndvi_mae": 0.0267
+    },
+    "EXP-E (PI-RCAN 3.33m)": {
+        "psnr": 34.68,
+        "ssim": 0.8691,
+        "mae": 0.0126,
+        "rmse": 0.02001,
+        "sam_deg": 1.83,
+        "ergas": 2.73,
+        "epi": 0.9343,
+        "ndvi_mae": 0.0262
+    }
+}

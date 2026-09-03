@@ -1,0 +1,62 @@
+# Experiment 4b: Physical Degradation Configuration
+# This file configures the modular physical degradation pipeline for mapping
+# high-resolution reference imagery (e.g. PlanetScope) to Sentinel-2-like observations.
+#
+# Configured using authoritative sensor specifications (Experiment 4c Research Revision).
+# Fixed/derived parameters are populated, while scene-specific parameters are set to null and disabled.
+
+metadata:
+  experiment_id: "experiment4b_physical_degradation"
+  description: "Configuration for modular physical degradation pipeline (PlanetScope 3m -> Sentinel-2 10m equivalents)"
+
+# 1. Spatial Blurring (Point Spread Function)
+psf:
+  enabled: true
+  kernel_size: 15        # Size of the Gaussian convolution filter window (must be odd)
+  
+  # Gaussian sigma standard deviation (in pixels) for each of the 4 bands: [Blue, Green, Red, NIR].
+  # Values: Derived from ESA MTF specifications at Nyquist frequency (isotropic ALT/ACT average).
+  #   - Blue (B02): 0.5225 LR pixels
+  #   - Green (B03): 0.5115 LR pixels
+  #   - Red (B04): 0.5225 LR pixels
+  #   - NIR (B08): 0.5300 LR pixels
+  # Aligned Grid Scaling (for K=2): sigma_HR = sigma_LR * 2.
+  # Source: ESA SentiWiki - Multispectral Instrument (MSI) Point Spread Function (PSF) specs
+  band_sigmas: [1.045, 1.023, 1.045, 1.060]
+
+# 2. Spectral Response Matching
+# Fits PlanetScope spectral response to Sentinel-2 Surface Reflectance (BOA) using linear calibration.
+#
+# Classification: SCENE_SPECIFIC. The actual cross-sensor coefficients must be empirically estimated
+# from overlapping cloud-free targets of the loaded imagery. It is set to disabled by default.
+spectral_matching:
+  enabled: false
+  slopes: null
+  intercepts: null
+
+# 3. Radiometric Normalization
+# Scales and clips raw input pixel values to validate physical reflectance ranges.
+radiometric_normalization:
+  enabled: true
+  input_scale: 10000.0   # Scale factor to divide input raw Digital Numbers (DN) to yield reflectance [0.0, 1.0]
+  clip_min: 0.0          # Minimum allowable physical surface reflectance
+  clip_max: 1.0          # Maximum allowable physical surface reflectance
+
+# 4. Sensor Noise Model
+# Injects band-specific instrument noise (AWGN) to simulate Sentinel-2 radiometric uncertainties.
+#
+# Classification: SCENE_SPECIFIC. The noise standard deviation must be empirically derived from uniform targets
+# in the Sentinel-2 scene. It is set to disabled by default.
+sensor_noise:
+  enabled: false
+  band_sigmas: null
+
+# 5. Spatial Sampling / Decimation
+# Decimates convolved high-resolution pixels to match target low-resolution pixel grids.
+spatial_decimation:
+  enabled: true
+  upscale_factor: 2      # Aligned resolution scaling factor (K=2 snaps PlanetScope to 5m, K=4 to 2.5m)
+  
+  # Decimation interpolation method. Recommended: "area" to simulate sensor pixel integration (IFOV),
+  # or "bilinear"/"bicubic"/"nearest" for alternative resampling schemes.
+  interpolation_mode: "area"

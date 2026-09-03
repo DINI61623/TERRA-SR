@@ -1,0 +1,36 @@
+{
+    "model_architecture": "PI-RCAN (Physically Informed Residual Channel Attention Network)",
+    "trainable_parameters": 807984,
+    "input_resolution": "10.0m GSD",
+    "output_resolution": "3.33m GSD (Scale x3)",
+    "spectral_bands": [
+        "B02 (Blue)",
+        "B03 (Green)",
+        "B04 (Red)",
+        "B08 (NIR)"
+    ],
+    "radiometric_normalization": "Normalized Float32 BOA Reflectance [0.0, 1.0] (DN / 10000.0)",
+    "degradation_model": {
+        "psf_gaussian_blur": "sigma = 0.52 px (MSI MTF spec)",
+        "decimation": "Area-weighted sub-pixel integration",
+        "sensor_noise": "sigma = 0.002 reflectance units"
+    },
+    "loss_formulation": {
+        "charbonnier_loss": "1.0 * L_Charbonnier",
+        "laplacian_edge_loss": "0.25 * L_Laplacian",
+        "sam_spectral_loss": "0.15 * L_SAM",
+        "ndvi_consistency_loss": "0.10 * L_NDVI",
+        "aleatoric_nll_loss": "0.05 * L_NLL"
+    },
+    "target_specification_status": "PASSED (< 4.0m requirement met at 3.33m GSD)",
+    "validation_metrics": {
+        "psnr": 34.68,
+        "ssim": 0.8691,
+        "mae": 0.0126,
+        "rmse": 0.02001,
+        "sam_deg": 1.83,
+        "ergas": 2.73,
+        "epi": 0.9343,
+        "ndvi_mae": 0.0262
+    }
+}

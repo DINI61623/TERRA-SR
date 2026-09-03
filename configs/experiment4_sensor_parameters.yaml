@@ -1,0 +1,102 @@
+# Experiment 4c: Authoritative Sensor Parameters Log (Revised)
+# Catalogs researched parameters according to the revised scientific classification.
+
+metadata:
+  description: "Sensor parameters log for Sentinel-2 MSI and PlanetScope constellations"
+  date_revised: "2026-08-31"
+
+parameters:
+  # 1. Radiometric scale factor
+  - parameter_name: "radiometric_normalization.input_scale"
+    band: "All (B02, B03, B04, B08)"
+    classification: "SUPPORTED_DIRECTLY"
+    value: 10000.0
+    units: "Dimensionless scaling factor"
+    derivation_equation: null
+    source: "ESA Sentinel-2 Level-2A Product Specifications & PlanetScope Analytic Product Specs"
+    confidence: "High"
+    safe_for_training: true
+
+  # 2. Decimation ratio
+  - parameter_name: "spatial_decimation.upscale_factor"
+    band: "All (B02, B03, B04, B08)"
+    classification: "SUPPORTED_DIRECTLY"
+    value: 2
+    units: "Dimensionless scaling factor"
+    derivation_equation: null
+    source: "Target spatial grid resolution transform design"
+    confidence: "High"
+    safe_for_training: true
+
+  # 3. PSF standard deviation
+  - parameter_name: "psf.band_sigmas.B02"
+    band: "B02 (Blue)"
+    classification: "DERIVED_FROM_SUPPORTED_VALUE"
+    value: 0.5225  # LR grid equivalent (1.045 pixels for K=2)
+    units: "Pixels (10m grid)"
+    derivation_equation: "sigma = sqrt(-2 * ln(MTF)) / pi"
+    source: "ESA SentiWiki - MSI PSF specs (Averaged ALT MTF = 0.27 and ACT MTF = 0.25 at Nyquist)"
+    confidence: "Medium"
+    safe_for_training: true
+
+  - parameter_name: "psf.band_sigmas.B03"
+    band: "B03 (Green)"
+    classification: "DERIVED_FROM_SUPPORTED_VALUE"
+    value: 0.5115  # LR grid equivalent (1.023 pixels for K=2)
+    units: "Pixels (10m grid)"
+    derivation_equation: "sigma = sqrt(-2 * ln(MTF)) / pi"
+    source: "ESA SentiWiki - MSI PSF specs (Averaged ALT MTF = 0.28 and ACT MTF = 0.27 at Nyquist)"
+    confidence: "Medium"
+    safe_for_training: true
+
+  - parameter_name: "psf.band_sigmas.B04"
+    band: "B04 (Red)"
+    classification: "DERIVED_FROM_SUPPORTED_VALUE"
+    value: 0.5225  # LR grid equivalent (1.045 pixels for K=2)
+    units: "Pixels (10m grid)"
+    derivation_equation: "sigma = sqrt(-2 * ln(MTF)) / pi"
+    source: "ESA SentiWiki - MSI PSF specs (Averaged ALT MTF = 0.27 and ACT MTF = 0.25 at Nyquist)"
+    confidence: "Medium"
+    safe_for_training: true
+
+  - parameter_name: "psf.band_sigmas.B08"
+    band: "B08 (NIR)"
+    classification: "DERIVED_FROM_SUPPORTED_VALUE"
+    value: 0.5300  # LR grid equivalent (1.060 pixels for K=2)
+    units: "Pixels (10m grid)"
+    derivation_equation: "sigma = sqrt(-2 * ln(MTF)) / pi"
+    source: "ESA SentiWiki - MSI PSF specs (Averaged ALT MTF = 0.26 and ACT MTF = 0.24 at Nyquist)"
+    confidence: "Medium"
+    safe_for_training: true
+
+  # 4. Spectral regression parameters
+  - parameter_name: "spectral_matching.slopes"
+    band: "All (Blue, Green, Red, NIR)"
+    classification: "SCENE_SPECIFIC"
+    value: null
+    units: "Dimensionless gain"
+    derivation_equation: "Linear least-squares regression over overlapping cloud-free stable pixels: S2 = alpha * Planet + beta"
+    source: "Roy et al. (2021) & Planet Harmonization Specs (calibration changes dynamically per pass/date)"
+    confidence: "Low"
+    safe_for_training: false
+
+  - parameter_name: "spectral_matching.intercepts"
+    band: "All (Blue, Green, Red, NIR)"
+    classification: "SCENE_SPECIFIC"
+    value: null
+    units: "Surface Reflectance"
+    derivation_equation: "Linear least-squares regression over overlapping cloud-free stable pixels: S2 = alpha * Planet + beta"
+    source: "Roy et al. (2021) & Planet Harmonization Specs (calibration changes dynamically per pass/date)"
+    confidence: "Low"
+    safe_for_training: false
+
+  # 5. Noise standard deviation
+  - parameter_name: "sensor_noise.band_sigmas"
+    band: "All (B02, B03, B04, B08)"
+    classification: "SCENE_SPECIFIC"
+    value: null
+    units: "Surface Reflectance"
+    derivation_equation: "Computed standard deviation of reflectance values inside a uniform, homogeneous region (e.g. calm deep water) of the target Sentinel-2 scene"
+    source: "ESA Sentinel-2 MSI performance specs (NEdR < 0.002) and Planet specs (SNR > 100). Actual noise level depends on atmospheric correction and processing."
+    confidence: "Low"
+    safe_for_training: false

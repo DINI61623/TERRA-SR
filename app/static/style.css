@@ -1,0 +1,1532 @@
+/* ==========================================================================
+   TERRA-SR | AI Multispectral Super-Resolution Platform
+   Modern Space & Geospatial Intelligence Dark Design System
+   ========================================================================== */
+
+:root {
+    --bg-primary: #080b11;
+    --bg-secondary: #0e131d;
+    --bg-card: rgba(17, 23, 36, 0.75);
+    --bg-card-hover: rgba(24, 32, 50, 0.85);
+    --bg-input: rgba(12, 17, 28, 0.8);
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-highlight: rgba(0, 242, 254, 0.35);
+    
+    --text-primary: #f0f4fc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --text-accent: #38bdf8;
+    
+    --cyan-glow: #00f2fe;
+    --blue-glow: #3b82f6;
+    --emerald-glow: #10b981;
+    --amber-glow: #f59e0b;
+    --violet-glow: #8b5cf6;
+    
+    --font-main: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-heading: 'Space Grotesk', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+    
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+    
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 25px rgba(0, 242, 254, 0.2);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+}
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+    background-image: 
+        radial-gradient(circle at 15% 15%, rgba(0, 242, 254, 0.05) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
+        linear-gradient(to bottom, rgba(8, 11, 17, 0.95), rgba(8, 11, 17, 1));
+}
+
+/* Background Grid Overlay */
+.grid-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-size: 50px 50px;
+    background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Top Navbar */
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(16px);
+    background: rgba(8, 11, 17, 0.85);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.85rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.brand-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+}
+
+.brand-text h1 {
+    font-family: var(--font-heading);
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    background: linear-gradient(90deg, #ffffff 0%, #38bdf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.brand-text p {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.nav-telemetry {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.telemetry-pill {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    padding: 0.35rem 0.85rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--emerald-glow);
+    box-shadow: 0 0 8px var(--emerald-glow);
+    animation: pulse-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Hero Tagline Banner */
+.hero-banner {
+    padding: 1.5rem 2rem 0.5rem 2rem;
+    max-width: 1600px;
+    margin: 0 auto;
+}
+
+.hero-tagline {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.hero-tagline span {
+    color: var(--text-accent);
+    font-weight: 600;
+}
+
+/* Main App Layout */
+.app-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 1rem 2rem 2.5rem 2rem;
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Left Sidebar Deck */
+.sidebar-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.glass-panel {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+}
+
+.glass-panel:hover {
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.9rem;
+}
+
+.panel-header h2 {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.panel-step-badge {
+    background: rgba(0, 242, 254, 0.12);
+    color: var(--cyan-glow);
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+}
+
+/* Upload Dropzone */
+.dropzone {
+    border: 2px dashed rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius-md);
+    padding: 1.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    background: var(--bg-input);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.dropzone:hover, .dropzone.dragover {
+    border-color: var(--cyan-glow);
+    background: rgba(0, 242, 254, 0.03);
+    box-shadow: var(--shadow-glow);
+}
+
+.dropzone-icon {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: var(--text-accent);
+}
+
+.dropzone-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.dropzone-hint {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.file-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Preset Scenes Selector */
+.preset-section {
+    margin-top: 0.85rem;
+}
+
+.preset-title {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.preset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.preset-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.6rem;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.preset-btn:hover, .preset-btn.active {
+    background: rgba(0, 242, 254, 0.08);
+    border-color: var(--cyan-glow);
+    color: var(--text-primary);
+}
+
+/* Metadata Panel */
+.metadata-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.73rem;
+}
+
+.meta-item {
+    background: var(--bg-input);
+    padding: 0.5rem 0.7rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.meta-label {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    margin-bottom: 0.15rem;
+}
+
+.meta-value {
+    color: var(--text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Model Selector Cards */
+.model-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.model-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.model-card:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--bg-card-hover);
+}
+
+.model-card.selected {
+    border-color: var(--cyan-glow);
+    background: rgba(0, 242, 254, 0.06);
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.15);
+}
+
+.model-info h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.15rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.model-badge {
+    font-size: 0.62rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+}
+
+.badge-recommended {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--emerald-glow);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-standard {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--text-accent);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.badge-baseline {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-muted);
+}
+
+.model-info p {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+}
+
+.model-radio {
+    accent-color: var(--cyan-glow);
+}
+
+/* Primary Action Button */
+.btn-enhance {
+    width: 100%;
+    background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+    color: #040812;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 0.95rem 1.5rem;
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    box-shadow: 0 4px 20px rgba(0, 242, 254, 0.3);
+    transition: all 0.25s ease;
+}
+
+.btn-enhance:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 28px rgba(0, 242, 254, 0.5);
+}
+
+.btn-enhance:active {
+    transform: translateY(0);
+}
+
+.btn-enhance.processing {
+    background: #334155;
+    color: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* Progress & Telemetry Modal/Bar */
+.progress-card {
+    display: none;
+    margin-top: 0.75rem;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+}
+
+.progress-card.active {
+    display: block;
+}
+
+.progress-bar-bg {
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00f2fe, #38bdf8);
+    transition: width 0.3s ease;
+}
+
+.progress-status {
+    font-size: 0.72rem;
+    color: var(--text-accent);
+    font-family: var(--font-mono);
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Right Main Workspace */
+.workspace-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* Visualizer Card */
+.visualizer-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.visualizer-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+/* Tab Switcher for Spectral Bands */
+.band-tabs {
+    display: flex;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.25rem;
+    gap: 0.25rem;
+}
+
+.band-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.band-tab:hover {
+    color: var(--text-primary);
+}
+
+.band-tab.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Viewer Controls */
+.viewer-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-btn {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+/* Split-Screen Slider Viewport */
+.viewport-wrapper {
+    position: relative;
+    width: 100%;
+    height: 520px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: #020408;
+    border: 1px solid var(--border-color);
+    user-select: none;
+}
+
+.slider-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.slider-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+
+.slider-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: auto;
+}
+
+.layer-original {
+    z-index: 1;
+}
+
+.layer-enhanced {
+    z-index: 2;
+    clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+    transition: clip-path 0.05s linear;
+}
+
+.slider-divider {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 100%;
+    background: var(--cyan-glow);
+    z-index: 10;
+    cursor: ew-resize;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.8);
+}
+
+.slider-handle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #080b11;
+    border: 2px solid var(--cyan-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cyan-glow);
+    font-size: 0.85rem;
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.6);
+}
+
+/* Floating Label Badges */
+.layer-badge {
+    position: absolute;
+    bottom: 1rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 600;
+    backdrop-filter: blur(8px);
+    z-index: 5;
+    pointer-events: none;
+    letter-spacing: 0.03em;
+}
+
+.badge-left {
+    left: 1rem;
+    background: rgba(0, 0, 0, 0.7);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.badge-right {
+    right: 1rem;
+    background: rgba(0, 242, 254, 0.15);
+    color: var(--cyan-glow);
+    border: 1px solid rgba(0, 242, 254, 0.35);
+}
+
+/* Feature Zoom Quick-Inspector */
+.roi-inspector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.roi-title {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+}
+
+.roi-pill-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.roi-pill {
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    transition: all 0.2s ease;
+}
+
+.roi-pill:hover, .roi-pill.active {
+    background: rgba(0, 242, 254, 0.08);
+    border-color: var(--cyan-glow);
+    color: var(--text-primary);
+}
+
+/* Quality Metrics HUD */
+.metrics-deck {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.85rem;
+}
+
+.metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.95rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.metric-card .metric-label {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.metric-card .metric-value {
+    font-family: var(--font-heading);
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.metric-card .metric-delta {
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+    color: var(--emerald-glow);
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+/* Export & Downloads Section */
+.export-deck {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.1rem 1.5rem;
+}
+
+.export-info h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.2rem;
+}
+
+.export-info p {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.export-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.btn-export {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    padding: 0.6rem 1.1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.btn-export:hover {
+    background: rgba(0, 242, 254, 0.1);
+    border-color: var(--cyan-glow);
+    color: var(--cyan-glow);
+}
+
+.btn-export-primary {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
+    border-color: rgba(0, 242, 254, 0.4);
+    color: var(--cyan-glow);
+}
+
+.btn-export-primary:hover {
+    background: linear-gradient(135deg, #00f2fe 0%, #3b82f6 100%);
+    color: #040812;
+}
+
+/* Fullscreen Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(4, 6, 10, 0.95);
+    backdrop-filter: blur(20px);
+    z-index: 1000;
+    padding: 2rem;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.open {
+    display: flex;
+}
+
+.modal-content {
+    width: 90vw;
+    height: 85vh;
+    position: relative;
+}
+
+.modal-close {
+    position: absolute;
+    top: -1.5rem;
+    right: 0;
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   6-Stage Workflow Stepper & Mode Switcher
+   ========================================================================== */
+.stepper-nav {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(14, 19, 29, 0.8);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: 0.25rem 0.5rem;
+}
+
+.step-item {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: var(--radius-lg);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.step-item.active {
+    color: var(--cyan-glow);
+    background: rgba(0, 242, 254, 0.12);
+    border: 1px solid rgba(0, 242, 254, 0.3);
+    box-shadow: 0 0 12px rgba(0, 242, 254, 0.2);
+}
+
+.step-item.completed {
+    color: var(--emerald-glow);
+}
+
+.step-arrow {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    opacity: 0.5;
+}
+
+/* Workspace Mode Switcher (Inspect vs Intelligence) */
+.workspace-tabs {
+    display: flex;
+    gap: 0.5rem;
+    background: rgba(10, 14, 23, 0.9);
+    padding: 0.35rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    margin-bottom: 1rem;
+}
+
+.workspace-tab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.workspace-tab-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.workspace-tab-btn.active {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.15) 0%, rgba(59, 130, 246, 0.15) 100%);
+    border: 1px solid rgba(0, 242, 254, 0.4);
+    color: #fff;
+    box-shadow: 0 0 16px rgba(0, 242, 254, 0.15);
+}
+
+.workspace-view-panel {
+    display: none;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.workspace-view-panel.active {
+    display: flex;
+}
+
+/* ==========================================================================
+   Satellite Intelligence Domain Selector & Cards Grid
+   ========================================================================== */
+.intelligence-header {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.intel-title h3 {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.intel-title p {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 0.2rem;
+}
+
+.intel-domains-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.intel-card {
+    background: rgba(14, 20, 32, 0.75);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.9rem;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.25s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.intel-card:hover:not(.disabled) {
+    border-color: rgba(0, 242, 254, 0.4);
+    background: rgba(20, 30, 48, 0.85);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.intel-card.active {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%);
+    border: 1px solid var(--cyan-glow);
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.2);
+}
+
+.intel-card.disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    filter: grayscale(0.4);
+}
+
+.intel-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.intel-icon {
+    font-size: 1.4rem;
+}
+
+.intel-badge {
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 0.2rem 0.45rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-active-intel {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: var(--emerald-glow);
+}
+
+.badge-coming-soon {
+    background: rgba(245, 158, 11, 0.2);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    color: var(--amber-glow);
+}
+
+.intel-card h4 {
+    font-size: 0.88rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.intel-card p {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    line-height: 1.25;
+}
+
+/* Domain Sublayer Switcher */
+.intel-sublayer-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(12, 17, 28, 0.95);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+}
+
+.intel-sublayer-tabs {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.intel-sublayer-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.intel-sublayer-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.intel-sublayer-btn.active {
+    background: var(--cyan-glow);
+    border-color: var(--cyan-glow);
+    color: #040812;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+
+/* Domain Analytics Telemetry Deck */
+.intel-analytics-deck {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.75rem;
+}
+
+.intel-metric-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1rem;
+    position: relative;
+}
+
+.intel-metric-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.intel-metric-val {
+    font-family: var(--font-heading);
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0.25rem 0;
+}
+
+.intel-metric-sub {
+    font-size: 0.7rem;
+    color: var(--cyan-glow);
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   Signature SR Impact Analysis Card
+   ========================================================================== */
+.sr-impact-card {
+    background: linear-gradient(135deg, rgba(14, 22, 38, 0.9) 0%, rgba(10, 16, 28, 0.9) 100%);
+    border: 1px solid rgba(0, 242, 254, 0.3);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.sr-impact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.6rem;
+}
+
+.sr-impact-header h4 {
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    color: var(--cyan-glow);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.impact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+}
+
+.impact-table th {
+    text-align: left;
+    color: var(--text-muted);
+    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.68rem;
+}
+
+.impact-table td {
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
+}
+
+.impact-badge-gain {
+    color: var(--emerald-glow);
+    font-weight: 700;
+    background: rgba(16, 185, 129, 0.15);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+}
+
+.scientific-safety-box {
+    background: rgba(245, 158, 11, 0.08);
+    border-left: 3px solid var(--amber-glow);
+    padding: 0.6rem 0.8rem;
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    font-size: 0.72rem;
+    color: #e2e8f0;
+    line-height: 1.35;
+}
+
+.scientific-safety-box strong {
+    color: var(--amber-glow);
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1100px) {
+    .app-container {
+        grid-template-columns: 1fr;
+    }
+    .metrics-deck, .intel-analytics-deck {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .stepper-nav {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   STAGE 2: STRICT VALIDATION & GEOSPATIAL INSPECTION STYLES
+   ========================================================================== */
+
+.validation-deck {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.validation-header-card {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.validation-header-card.invalid {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.validation-status-badge {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--emerald-glow);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.validation-status-badge.invalid {
+    color: #ef4444;
+}
+
+.validation-checklist {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0.75rem;
+}
+
+.validation-check-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.check-icon-ok {
+    color: var(--emerald-glow);
+    font-weight: bold;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.check-icon-fail {
+    color: #ef4444;
+    font-weight: bold;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+}
+
+.check-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.15rem;
+}
+
+.check-desc {
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+}
+
+/* ==========================================================================
+   STAGE 5: INTERACTIVE GEOSPATIAL POLYGON & FEATURE INSPECTOR
+   ========================================================================== */
+
+.geo-inspector-panel {
+    background: rgba(14, 19, 29, 0.9);
+    border: 1px solid var(--border-highlight);
+    border-radius: var(--radius-md);
+    padding: 1rem;
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.geo-inspector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.geo-inspector-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--cyan-glow);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.geo-feature-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    max-height: 110px;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+}
+
+.geo-pill {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.geo-pill:hover, .geo-pill.active {
+    background: rgba(0, 242, 254, 0.15);
+    border-color: var(--cyan-glow);
+    color: #fff;
+}
+
+.geo-inspector-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.6rem;
+    background: rgba(8, 11, 17, 0.6);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+}
+
+.geo-prop-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+}
+
+.geo-prop-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.geo-prop-val {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+.confidence-tag-high {
+    color: var(--emerald-glow);
+    background: rgba(16, 185, 129, 0.15);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.confidence-tag-med {
+    color: var(--amber-glow);
+    background: rgba(245, 158, 11, 0.15);
+    padding: 0.1rem 0.35rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.coordinate-hud {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(8, 11, 17, 0.85);
+    border: 1px solid var(--border-color);
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--cyan-glow);
+    pointer-events: none;
+    z-index: 10;
+    backdrop-filter: blur(4px);
+}
+
+/* Leaflet GIS Map Container & View Mode Switcher */
+.intel-view-mode-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    background: rgba(15, 23, 42, 0.7);
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.map-view-toggle-group {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.map-toggle-btn {
+    padding: 0.35rem 0.75rem;
+    background: rgba(30, 41, 59, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.map-toggle-btn.active {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(79, 70, 229, 0.3));
+    border-color: var(--cyan-glow);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(0, 242, 254, 0.25);
+}
+
+#leaflet-map-container {
+    height: 540px;
+    width: 100%;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: #090d16;
+    z-index: 1;
+    overflow: hidden;
+}
+
+/* Leaflet Dark Theme Overrides */
+.leaflet-container {
+    font-family: var(--font-sans);
+    background: #080b11 !important;
+}
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: rgba(15, 23, 42, 0.95) !important;
+    color: #f1f5f9 !important;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+    border-radius: var(--radius-sm);
+    backdrop-filter: blur(8px);
+}
+
+.leaflet-popup-content {
+    margin: 10px 14px;
+    line-height: 1.4;
+    font-size: 0.78rem;
+}
+
+.leaflet-control-layers {
+    background: rgba(15, 23, 42, 0.9) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-sm) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(6px);
+}
+
+.leaflet-control-layers-toggle {
+    filter: invert(1);
+}
+
+

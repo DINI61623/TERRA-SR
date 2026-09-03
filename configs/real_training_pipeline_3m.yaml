@@ -1,0 +1,81 @@
+# ==============================================================================
+# SIH26142 - Real 10m -> ~3m Reference Training Pipeline Contract
+# ==============================================================================
+
+experiment:
+  name: "Real_Reference_10m_to_3m_SRM"
+  objective: "Super-Resolution Mapping from Sentinel-2 10m to PlanetScope ~3m Reference"
+  version: "1.0.0"
+
+dataset:
+  input_sensor: "Sentinel-2 L2A (Bottom-Of-Atmosphere Reflectance)"
+  input_bands: ["B02 (Blue)", "B03 (Green)", "B04 (Red)", "B08 (NIR)"]
+  input_resolution_m: 10.0
+  reference_sensor: "PlanetScope Ortho Scene (Surface Reflectance)"
+  reference_bands: ["Band 1/2 (Blue)", "Band 2/3 (Green)", "Band 3/4 (Red)", "Band 4/8 (NIR)"]
+  target_resolution_m: 3.3333333333333335
+  upscale_factor: 3
+  patch_size_hr: 126
+  patch_size_lr: 42
+  crs_target: "EPSG:32643"
+  radiometric_scaling: "Normalized Float32 [0.0, 1.0] (DN / 10000.0)"
+
+spatial_partitioning:
+  strategy: "Geographic Quadrant Partitioning (Zero Overlap)"
+  train_quadrants: ["North-West", "South-West"]
+  val_quadrants: ["North-East"]
+  test_quadrants: ["South-East"]
+  spatial_leakage_prevention: "STRICT_ENFORCED"
+
+quality_control:
+  max_temporal_gap_days: 5
+  max_cloud_reflectance: 0.45
+  max_nodata_fraction: 0.01
+  max_registration_error_m: 3.0
+  min_sobel_edge_energy: 0.002
+
+degradation_and_calibration:
+  psf_blur:
+    model: "Sentinel-2 MSI Optical MTF Gaussian Convolution"
+    band_sigmas_px: [0.52, 0.52, 0.51, 0.53]
+  spectral_calibration:
+    mode: "Empirical Linear Regression over Overlapping Cloud-Free Pixels"
+    formula: "rho_S2(c) = alpha_c * rho_ref(c) + beta_c"
+  sensor_noise:
+    mode: "Empirical Standard Deviation from Dark Water Targets Only"
+    sigma: 0.002
+
+learning_objective:
+  loss_components:
+    charbonnier:
+      weight: 1.00
+      purpose: "Pixel-level reconstruction stability"
+    ms_ssim:
+      weight: 0.15
+      purpose: "Building geometry and parcel structure preservation"
+    sam_spectral_angle:
+      weight: 0.10
+      purpose: "Cross-spectral angle preservation across B02-B08"
+    laplacian_edge:
+      weight: 0.15
+      purpose: "High-frequency edge and cadastral boundary sharpening"
+    ndvi_consistency:
+      weight: 0.10
+      purpose: "Vegetation index fidelity"
+
+model_candidate:
+  architecture: "PI-RCAN Multi-Scale / Residual-in-Residual Channel Attention"
+  num_features: 48
+  num_groups: 3
+  num_rcab: 4
+  reduction: 8
+  upscale_factor: 3
+  nir_edge_guidance: true
+  uncertainty_head: true
+
+acceptance_criteria:
+  minimum_psnr_gain_vs_bilinear_db: 1.5
+  minimum_ssim_gain_vs_bilinear: 0.03
+  maximum_sam_distortion_deg: 3.0
+  minimum_epi: 0.95
+  visual_inspection_classes: ["Urban Buildings", "Highways/Roads", "Field Demarcations", "Vegetation", "Water Edges"]

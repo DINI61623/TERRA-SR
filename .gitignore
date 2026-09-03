@@ -1,0 +1,45 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.env
+**/.env
+**/*.env
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Data & Datasets
+data/
+*.jp2
+*.npy
+
+# Generated Model Outputs & Intermediate Artifacts
+outputs/
+scratch/
+*.log
+*.tmp
+
+# Web App Dynamic/Generated Previews (Keep CSS)
+app/static/*.png
+
+# OS / IDE Artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,57 @@
+# Experiment 4 Real-Data Training Configuration File
+# For SIH 2026 - Deep Learning Based Super Resolution Mapping (SRM) (SIH26142)
+
+metadata:
+  experiment_name: "Experiment 4 - Real Cross-Sensor Training (Sentinel-2 to PlanetScope)"
+  description: "Upscales Sentinel-2 10m bands to 5m resolution using 3m PlanetScope reference"
+  creation_date: "2026-08-31"
+
+model:
+  architecture: "ResidualCNN"
+  in_channels: 4
+  num_features: 32
+  num_blocks: 3
+  upscale_factor: 2   # 10m -> 5m spatial grid alignment
+
+dataset:
+  input_bands:
+    - "B02 (Blue)"
+    - "B03 (Green)"
+    - "B04 (Red)"
+    - "B08 (NIR)"
+  target_bands:
+    - "Band 1/2 (Blue)"
+    - "Band 2/3 (Green)"
+    - "Band 3/4 (Red)"
+    - "Band 4/8 (NIR)"
+  lr_patch_size: 32   # LR patch size: 32x32 pixels (320m x 320m)
+  hr_patch_size: 64   # HR patch size: 64x64 pixels (320m x 320m on 5m grid)
+  max_nodata_ratio: 0.1
+  
+spatial_splits:
+  split_type: "row_wise_geographic_striping"
+  train_rows: "0-23"
+  buffer_rows: "24-25" # Discarded buffer zone to prevent spatial leakage
+  val_rows: "26-28"
+  test_rows: "29-31"
+  spatial_buffer_width_meters: 640.0
+
+degradation:
+  psf_type: "Gaussian"
+  psf_fwhm_lr_pixels: 1.2
+  resampling: "area_weighted_average"
+  radiometric_normalization: "linear_stable_target_regression"
+  additive_noise_sigma: 0.005
+
+training:
+  epochs: 100
+  batch_size: 8
+  learning_rate: 0.001
+  optimizer: "Adam"
+  loss: "MSELoss"
+  device: "cuda"      # Falls back to 'cpu' if CUDA is unavailable
+
+paths:
+  checkpoint_dir: "models/experiment4_real/"  # New location, never overwrite existing checkpoints
+  output_dir: "outputs/experiment4_real/"
+  log_dir: "outputs/experiment4_real/logs/"
