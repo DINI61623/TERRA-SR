@@ -61,7 +61,8 @@ except ImportError:
 PORT = 8080
 STATIC_DIR = ROOT_DIR / "app" / "static"
 OUTPUTS_DIR = ROOT_DIR / "outputs"
-DEFAULT_INPUT_TIFF = OUTPUTS_DIR / "s2_5m_upscaled_bilinear.tiff"
+S2_PROCESSED_TIFF = ROOT_DIR / "data" / "processed" / "s2_10m_stacked_roi.tiff"
+DEFAULT_INPUT_TIFF = S2_PROCESSED_TIFF if S2_PROCESSED_TIFF.exists() else (OUTPUTS_DIR / "s2_5m_upscaled_bilinear.tiff")
 
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -298,15 +299,40 @@ HTML_TEMPLATE = """<!DOCTYPE html>
         </div>
 
         <div class="nav-telemetry">
+            <button class="demo-mode-toggle-btn" id="btn-toggle-demo-mode">
+                <span class="demo-indicator-dot"></span>
+                <span id="demo-mode-label">🎯 DEMO MODE ACTIVE</span>
+            </button>
             <div class="telemetry-pill">
                 <span class="status-dot"></span>
-                <span>STANDARDIZED SR PRODUCT ACTIVE</span>
+                <span>STANDARDIZED SR PRODUCT</span>
             </div>
             <div class="telemetry-pill">
                 <span>CRS: EPSG:32643</span>
             </div>
         </div>
     </nav>
+
+    <!-- Judge / Evaluator Presentation Guide Banner -->
+    <div class="demo-walkthrough-guide" id="demo-walkthrough-guide">
+        <div class="guide-title">
+            <span class="guide-icon">🏆</span>
+            <strong>JUDGE / EVALUATOR WALKTHROUGH:</strong>
+        </div>
+        <div class="guide-steps">
+            <div class="guide-step-item active" id="guide-step-1"><span class="step-num">1</span> Choose Demo Scene</div>
+            <span class="guide-step-arrow">→</span>
+            <div class="guide-step-item" id="guide-step-2"><span class="step-num">2</span> Enhance (5m Validated SR)</div>
+            <span class="guide-step-arrow">→</span>
+            <div class="guide-step-item" id="guide-step-3"><span class="step-num">3</span> Inspect Native vs SR</div>
+            <span class="guide-step-arrow">→</span>
+            <div class="guide-step-item" id="guide-step-4"><span class="step-num">4</span> Select Intelligence Domain</div>
+            <span class="guide-step-arrow">→</span>
+            <div class="guide-step-item" id="guide-step-5"><span class="step-num">5</span> View Exact GIS Polygons</div>
+            <span class="guide-step-arrow">→</span>
+            <div class="guide-step-item" id="guide-step-6"><span class="step-num">6</span> Download GeoJSON & GeoTIFF</div>
+        </div>
+    </div>
 
     <!-- Hero Tagline -->
     <div class="hero-banner">
@@ -336,12 +362,12 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
 
                 <div class="preset-section">
-                    <div class="preset-title">Or select mission benchmark scene:</div>
+                    <div class="preset-title">Select Mission Demo Scenario:</div>
                     <div class="preset-grid">
-                        <button class="preset-btn active" data-preset="bengaluru_urban">🌆 Bengaluru Urban</button>
-                        <button class="preset-btn" data-preset="highway_corridor">🛣️ Highway Corridor</button>
-                        <button class="preset-btn" data-preset="field_parcels">🌾 Field Parcels</button>
-                        <button class="preset-btn" data-preset="water_boundary">🌊 Water / Lake</button>
+                        <button class="preset-btn active" data-preset="bengaluru_urban">🌆 Demo A: Urban (Buildings & Roads)</button>
+                        <button class="preset-btn" data-preset="water_boundary">💧 Demo B: Water (Lake & Shoreline)</button>
+                        <button class="preset-btn" data-preset="disaster_flood">🌊 Demo C: Disaster (Flood Inundation)</button>
+                        <button class="preset-btn" data-preset="field_parcels">🌾 Demo D: Agriculture (Crop Parcels)</button>
                     </div>
                 </div>
             </div>
@@ -420,47 +446,47 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             <!-- 3. AI Model Selector Panel -->
             <div class="glass-panel" id="panel-model">
                 <div class="panel-header">
-                    <h2><span>🧠</span> 3. Select AI Model</h2>
+                    <h2><span>🧠</span> 3. Select AI Model Engine</h2>
                     <span class="panel-step-badge">STEP 3</span>
                 </div>
                 
                 <div class="model-options">
                     <label class="model-card selected" data-model="ResidualCNN">
                         <div class="model-info">
-                            <h3>Deep Residual CNN <span class="model-badge badge-recommended">BEST VALIDATED / EXP 3</span></h3>
-                            <p>39.79 dB PSNR • 0.9541 SSIM • 1.21° SAM • 5.0m GSD (Top Reconstruction Quality)</p>
+                            <h3>Deep Residual CNN <span class="model-badge badge-recommended">VALIDATED SR • 5.0m GSD</span></h3>
+                            <p>39.79 dB PSNR • 0.9541 SSIM • 1.21° SAM • 5.0m GSD (Current Primary Validated Engine)</p>
                         </div>
                         <input type="radio" name="model" value="ResidualCNN" class="model-radio" checked>
                     </label>
 
+                    <label class="model-card" data-model="PIRCAN">
+                        <div class="model-info">
+                            <h3>PI-RCAN Multi-Scale <span class="model-badge badge-standard">EXPERIMENTAL • 3.33m Grid</span></h3>
+                            <p>34.68 dB PSNR • 0.8691 SSIM • 3.33m GSD Grid • Aleatoric Uncertainty Gating (Research Prototype)</p>
+                        </div>
+                        <input type="radio" name="model" value="PIRCAN" class="model-radio">
+                    </label>
+
                     <label class="model-card" data-model="MSRCAN">
                         <div class="model-info">
-                            <h3>MS-RCAN Channel Attention <span class="model-badge badge-standard">EXP 4D</span></h3>
-                            <p>39.66 dB PSNR • 0.9535 SSIM • 12 RCABs with Composite Spectral Loss (5.0m GSD)</p>
+                            <h3>MS-RCAN Channel Attention <span class="model-badge badge-standard">EXPERIMENTAL • 5.0m GSD</span></h3>
+                            <p>39.66 dB PSNR • 0.9535 SSIM • 12 RCABs with Composite Spectral Loss</p>
                         </div>
                         <input type="radio" name="model" value="MSRCAN" class="model-radio">
                     </label>
 
                     <label class="model-card" data-model="HFSRM">
                         <div class="model-info">
-                            <h3>HF-SRM Residual Attention <span class="model-badge badge-standard">EXP 4E</span></h3>
-                            <p>39.47 dB PSNR • Multi-Scale Receptive Fields + NIR Edge Guidance (5.0m GSD)</p>
+                            <h3>HF-SRM Residual Attention <span class="model-badge badge-standard">EXPERIMENTAL • 5.0m GSD</span></h3>
+                            <p>39.47 dB PSNR • Multi-Scale Receptive Fields + NIR Edge Guidance</p>
                         </div>
                         <input type="radio" name="model" value="HFSRM" class="model-radio">
                     </label>
 
-                    <label class="model-card" data-model="PIRCAN">
-                        <div class="model-info">
-                            <h3>PI-RCAN Multi-Scale <span class="model-badge badge-standard">EXP 5 (3.33m EXPERIMENTAL)</span></h3>
-                            <p>34.68 dB PSNR • 0.8691 SSIM • 3.33m GSD Grid • Aleatoric Uncertainty Gating</p>
-                        </div>
-                        <input type="radio" name="model" value="PIRCAN" class="model-radio">
-                    </label>
-
                     <label class="model-card" data-model="Bilinear">
                         <div class="model-info">
-                            <h3>Bilinear Interpolation <span class="model-badge badge-baseline">BASELINE</span></h3>
-                            <p>37.55 dB PSNR • Non-learned analytical interpolation benchmark (5.0m GSD)</p>
+                            <h3>Bilinear Interpolation <span class="model-badge badge-baseline">BASELINE • 5.0m GSD</span></h3>
+                            <p>37.55 dB PSNR • Analytical Non-Learned Interpolation Benchmark</p>
                         </div>
                         <input type="radio" name="model" value="Bilinear" class="model-radio">
                     </label>
@@ -838,6 +864,23 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             const btnViewModeSlider = document.getElementById('btn-view-mode-slider');
             const btnViewModeMap = document.getElementById('btn-view-mode-map');
 
+            const btnToggleDemoMode = document.getElementById('btn-toggle-demo-mode');
+            const demoModeLabel = document.getElementById('demo-mode-label');
+            const demoWalkthroughGuide = document.getElementById('demo-walkthrough-guide');
+            const guideSteps = [
+                document.getElementById('guide-step-1'),
+                document.getElementById('guide-step-2'),
+                document.getElementById('guide-step-3'),
+                document.getElementById('guide-step-4'),
+                document.getElementById('guide-step-5'),
+                document.getElementById('guide-step-6')
+            ];
+
+            const hudPsnr = document.getElementById('hud-psnr');
+            const hudSsim = document.getElementById('hud-ssim');
+            const hudSam = document.getElementById('hud-sam');
+            const hudEpi = document.getElementById('hud-epi');
+
             const bandTabs = document.querySelectorAll('.band-tab');
             const roiPills = document.querySelectorAll('.roi-pill');
             const modelCards = document.querySelectorAll('.model-card');
@@ -860,6 +903,15 @@ HTML_TEMPLATE = """<!DOCTYPE html>
             let leafletMap = null;
             let currentGeoJsonLayer = null;
             let imageOverlayLayer = null;
+            let isDemoMode = true;
+
+            function updateGuideStep(stepNum) {
+                guideSteps.forEach((el, idx) => {
+                    if (el) {
+                        el.classList.toggle('active', (idx + 1) === stepNum);
+                    }
+                });
+            }
 
             // Sublayers Definition
             const DOMAIN_SUBLAYERS = {
@@ -1176,6 +1228,53 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 }
             });
 
+            // Demo Mode Toggle
+            btnToggleDemoMode.addEventListener('click', () => {
+                isDemoMode = !isDemoMode;
+                if (isDemoMode) {
+                    btnToggleDemoMode.classList.remove('research-mode');
+                    demoModeLabel.textContent = '🎯 DEMO MODE ACTIVE';
+                    demoWalkthroughGuide.style.display = 'flex';
+                } else {
+                    btnToggleDemoMode.classList.add('research-mode');
+                    demoModeLabel.textContent = '🔬 RESEARCH MODE';
+                    demoWalkthroughGuide.style.display = 'none';
+                }
+            });
+
+            // Preset Buttons Selection
+            presetBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    presetBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const preset = btn.getAttribute('data-preset');
+                    if (preset === 'bengaluru_urban') {
+                        currentRoi = 'urban';
+                        activeDomain = 'urban';
+                        roiPills.forEach(p => p.classList.toggle('active', p.getAttribute('data-roi') === 'urban'));
+                        intelCards.forEach(c => c.classList.toggle('active', c.getAttribute('data-domain') === 'urban'));
+                    } else if (preset === 'water_boundary') {
+                        currentRoi = 'water';
+                        activeDomain = 'water';
+                        roiPills.forEach(p => p.classList.toggle('active', p.getAttribute('data-roi') === 'water'));
+                        intelCards.forEach(c => c.classList.toggle('active', c.getAttribute('data-domain') === 'water'));
+                    } else if (preset === 'disaster_flood') {
+                        currentRoi = 'full';
+                        activeDomain = 'disaster';
+                        roiPills.forEach(p => p.classList.toggle('active', p.getAttribute('data-roi') === 'full'));
+                        intelCards.forEach(c => c.classList.toggle('active', c.getAttribute('data-domain') === 'disaster'));
+                    } else if (preset === 'field_parcels') {
+                        currentRoi = 'fields';
+                        activeDomain = 'agriculture';
+                        roiPills.forEach(p => p.classList.toggle('active', p.getAttribute('data-roi') === 'fields'));
+                        intelCards.forEach(c => c.classList.toggle('active', c.getAttribute('data-domain') === 'agriculture'));
+                    }
+                    updateInspectLayers();
+                    loadDomainIntelligence(activeDomain);
+                    updateGuideStep(2);
+                });
+            });
+
             // Band Switcher
             bandTabs.forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -1225,6 +1324,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                     card.classList.add('active');
                     activeDomain = card.getAttribute('data-domain');
                     loadDomainIntelligence(activeDomain);
+                    updateGuideStep(4);
                 });
             });
 
@@ -1292,6 +1392,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         container.querySelectorAll('.geo-pill').forEach(p => p.classList.remove('active'));
                         pill.classList.add('active');
                         displayFeatureDetails(feat);
+                        updateGuideStep(5);
                     });
                     container.appendChild(pill);
                 });
@@ -1325,7 +1426,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 const tagClass = conf === 'HIGH' ? 'confidence-tag-high' : 'confidence-tag-med';
                 confEl.innerHTML = `<span class="${tagClass}">${conf}</span> ${prop.confidence_rationale || ''}`;
                 
-                document.getElementById('geo-inspect-val').textContent = 'REFERENCE VALIDATED: NO (Certified Reference Absent)';
+                document.getElementById('geo-inspect-val').textContent = 'REFERENCE VALIDATED: NO (Independent Reference Scene Absent)';
             }
 
             function renderDomainTelemetry(report) {
@@ -1527,6 +1628,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                             hudEpi.textContent = `${data.metrics.epi}`;
                         }
                         tabBtnInspect.click();
+                        updateGuideStep(3);
                     }, 500);
                 });
             });
@@ -1558,6 +1660,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                         document.getElementById('meta-bands').textContent = data.metadata.bands || '4 Bands (RGB+NIR)';
                         document.getElementById('meta-crs').textContent = data.metadata.crs || 'EPSG:32643';
                     }
+                    updateGuideStep(2);
                 });
             }
 

@@ -1529,4 +1529,127 @@ body {
     filter: invert(1);
 }
 
+/* ==========================================================================
+   Presentation Demo Mode & Judge Walkthrough Guide
+   ========================================================================== */
+.demo-mode-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.45rem 1rem;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(59, 130, 246, 0.2));
+    border: 1px solid var(--border-highlight);
+    color: #ffffff;
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 15px rgba(0, 242, 254, 0.2);
+}
+
+.demo-mode-toggle-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 20px rgba(0, 242, 254, 0.35);
+}
+
+.demo-mode-toggle-btn.research-mode {
+    background: rgba(30, 41, 59, 0.6);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--text-secondary);
+    box-shadow: none;
+}
+
+.demo-indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--cyan-glow);
+    box-shadow: 0 0 10px var(--cyan-glow);
+    animation: pulse-dot 1.8s infinite ease-in-out;
+}
+
+.demo-mode-toggle-btn.research-mode .demo-indicator-dot {
+    background: var(--text-muted);
+    box-shadow: none;
+    animation: none;
+}
+
+.demo-walkthrough-guide {
+    max-width: 1600px;
+    margin: 0.75rem auto 0 auto;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(90deg, rgba(17, 24, 39, 0.9) 0%, rgba(15, 23, 42, 0.85) 100%);
+    border: 1px solid rgba(0, 242, 254, 0.25);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.guide-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: var(--cyan-glow);
+    font-family: var(--font-heading);
+    letter-spacing: 0.03em;
+}
+
+.guide-steps {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.guide-step-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.04);
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.guide-step-item.active {
+    background: rgba(0, 242, 254, 0.15);
+    border-color: var(--cyan-glow);
+    color: #fff;
+    font-weight: 600;
+}
+
+.guide-step-item .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+}
+
+.guide-step-item.active .step-num {
+    background: var(--cyan-glow);
+    color: #080b11;
+    font-weight: 700;
+}
+
+.guide-step-arrow {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+
 

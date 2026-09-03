@@ -228,7 +228,7 @@ class DisasterIntelligenceModule(BaseIntelligenceModule):
             "iou": round(iou, 4),
             "precision": round(precision, 4),
             "recall": round(recall, 4),
-            "interpretation": f"{event_type} F1-Score: {f1*100:.1f}%, IoU: {iou*100:.1f}% against certified reference."
+            "interpretation": f"{event_type} F1-Score: {f1*100:.1f}%, IoU: {iou*100:.1f}% against independent reference."
         }
 
     def process(
