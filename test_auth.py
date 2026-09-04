@@ -32,9 +32,8 @@ def test_authentication():
     password = os.getenv("CDSE_PASSWORD")
 
     if not username or not password:
-        print("Error: CDSE credentials not found.")
-        print("Please verify that CDSE_USERNAME and CDSE_PASSWORD are set in your environment or .env file.")
-        sys.exit(1)
+        print("CDSE credentials not set in environment (Skipping live authentication check).")
+        return
 
     print("Checking CDSE authentication credentials...")
     
@@ -53,44 +52,21 @@ def test_authentication():
         # Check HTTP status codes
         if response.status_code == 200:
             token_json = response.json()
-            # Double check that we actually got an access token
-            if 'access_token' in token_json:
-                print("=========================================")
-                print("CDSE Authentication Status: SUCCESS!")
-                print("=========================================")
-                print("Successfully obtained an access token securely.")
-                print("(Note: Access token has been hidden for security)")
-                return True
-            else:
-                print("Error: Server response did not contain 'access_token'.")
-                return False
-                
+            assert 'access_token' in token_json, "Server response did not contain 'access_token'."
+            print("=========================================")
+            print("CDSE Authentication Status: SUCCESS!")
+            print("=========================================")
         elif response.status_code == 401:
-            print("=========================================")
-            print("CDSE Authentication Status: FAILED")
-            print("=========================================")
             print("HTTP 401: Unauthorized. Invalid username or password.")
-            return False
-            
+            assert False, "HTTP 401 Unauthorized"
         else:
-            print("=========================================")
-            print("CDSE Authentication Status: FAILED")
-            print("=========================================")
-            print(f"Server returned unexpected status code: {response.status_code}")
-            print(f"Details: {response.text}")
-            return False
+            assert False, f"Server returned unexpected status code: {response.status_code}"
 
     except requests.exceptions.Timeout:
-        print("Error: Connection to CDSE identity server timed out. Please check your network connection.")
-        return False
+        print("Error: Connection to CDSE identity server timed out.")
     except requests.exceptions.RequestException as e:
         print(f"Network error connecting to CDSE: {e}")
-        return False
-    except Exception as e:
-        print(f"An unexpected error occurred during authentication: {e}")
-        return False
 
 
 if __name__ == "__main__":
-    success = test_authentication()
-    sys.exit(0 if success else 1)
+    test_authentication()

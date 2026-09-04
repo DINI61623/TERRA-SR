@@ -1,0 +1,46 @@
+# Secrets & Environment Files
+.env
+.env.*
+*.env
+**/.env
+**/*.env
+
+# Git & IDE Artifacts
+.git/
+.github/
+.gitignore
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Python Bytecode & Test Caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Raw Datasets & Large Archives (Preserve data/processed/ in image)
+data/raw/
+data/samples/
+data/uploads/
+*.jp2
+*.tar.gz
+*.zip
+
+# Temporary Runtime & Output Directories
+outputs/
+scratch/
+*.log
+*.tmp

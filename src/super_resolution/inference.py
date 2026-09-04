@@ -116,6 +116,10 @@ class ProductionInference:
             print(f"[Inference] Initialized Bilinear analytical pipeline (upscale x{self.upscale_factor})")
         else:
             weights_file = Path(checkpoint_path) if checkpoint_path else cfg["weights"]
+            if weights_file and not weights_file.exists():
+                candidate = Path(__file__).resolve().parent.parent.parent / weights_file
+                if candidate.exists():
+                    weights_file = candidate
             model_cls = cfg["class"]
             kwargs = cfg.get("kwargs", {"in_channels": 4, "upscale_factor": self.upscale_factor})
             

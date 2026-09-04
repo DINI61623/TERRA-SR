@@ -58,7 +58,7 @@ try:
 except ImportError:
     HAS_RASTERIO = False
 
-PORT = 8080
+PORT = int(os.getenv("PORT", 8080))
 STATIC_DIR = ROOT_DIR / "app" / "static"
 OUTPUTS_DIR = ROOT_DIR / "outputs"
 S2_PROCESSED_TIFF = ROOT_DIR / "data" / "processed" / "s2_10m_stacked_roi.tiff"
@@ -94,24 +94,40 @@ def compute_sobel_gradient(arr: np.ndarray) -> np.ndarray:
 
 
 def extract_metadata(file_path):
-    """Extracts metadata dictionary from raster file."""
+    """Extracts comprehensive metadata and capabilities dictionary from raster file."""
     file_path = Path(file_path)
     if not file_path.exists():
         file_path = DEFAULT_INPUT_TIFF
         
-    val = SatelliteInputValidator.inspect_raster_metadata(file_path)
+    val = SatelliteInputValidator.validate_input(file_path)
+    CURRENT_STATE["validation_result"] = val.to_dict()
     meta = {
         "filename": file_path.name,
         "file_size": f"{file_path.stat().st_size / (1024*1024):.2f} MB" if file_path.exists() else "64.0 MB",
-        "format": val.get("format", "GeoTIFF"),
-        "status": "VALID_RASTER",
-        "dimensions": val.get("dimensions", "2048 × 2048 px"),
-        "bands": f"{val.get('band_count', 4)} Spectral Bands",
-        "resolution": f"{val.get('gsd', 10.0):.1f}m GSD",
-        "crs": val.get("crs", "EPSG:32643"),
-        "bounds": val.get("bounds", {"left": 750000.0, "bottom": 1440000.0, "right": 760240.0, "top": 1450240.0}),
-        "radiometric_depth": "Normalized Float32 [0, 1]",
-        "product_type": val.get("product_type", "Sentinel-2 L2A BOA 10m Multispectral")
+        "format": val.metadata.get("format", "GeoTIFF"),
+        "status": val.status,
+        "level": val.level,
+        "is_valid": val.is_valid,
+        "dimensions": val.metadata.get("dimensions", "2048 × 2048 px"),
+        "bands": f"{len(val.bands)} Bands ({', '.join(val.bands)})" if isinstance(val.bands, list) else str(val.bands),
+        "band_names": val.bands,
+        "resolution": f"{val.gsd:.1f}m GSD",
+        "gsd": val.gsd,
+        "crs": val.crs or "NONE",
+        "georeferenced": val.georeferenced,
+        "bounds": val.metadata.get("bounds", {"left": 750000.0, "bottom": 1440000.0, "right": 760240.0, "top": 1450240.0}),
+        "radiometric_depth": "Normalized Float32 [0, 1]" if val.reflectance_valid else "Out of Range / Corrupted",
+        "reflectance_valid": val.reflectance_valid,
+        "product_type": val.detected_product,
+        "detected_sensor": val.detected_sensor,
+        "acquisition_date": val.metadata.get("acquisition_date", "2026-05-15"),
+        "capabilities": val.capabilities,
+        "warnings": val.warnings,
+        "errors": val.errors,
+        "checks": val.checks,
+        "reasons": val.reasons,
+        "summary_message": val.format_summary(),
+        "sr_compatibility_message": val.get_sr_compatibility_message()
     }
     return meta
 
@@ -125,17 +141,17 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN"):
         input_tiff_path = DEFAULT_INPUT_TIFF
         
     # 1. Strict Input Validation
-    val_res = SatelliteInputValidator.validate_for_domain(input_tiff_path, domain="super_resolution")
+    val_res = SatelliteInputValidator.validate_input(input_tiff_path, domain="super_resolution")
     CURRENT_STATE["validation_result"] = val_res.to_dict()
-    print(f"[TERRA-SR Engine] Input Validation: {val_res.status} ({val_res.metadata.get('product_type')})", flush=True)
+    print(f"[TERRA-SR Engine] Input Validation: {val_res.status} ({val_res.detected_product})", flush=True)
 
     print(f"[TERRA-SR Engine] Super-resolving scene via {model_name}...", flush=True)
     start_t = time.time()
     
     actual_model = model_name
-    if model_name == "HFSRM" and not Path("models/hfsrm_experiment4e.pth").exists():
-        actual_model = "MSRCAN" if Path("models/msrcan_experiment4d.pth").exists() else "ResidualCNN"
-    elif model_name == "MSRCAN" and not Path("models/msrcan_experiment4d.pth").exists():
+    if model_name == "HFSRM" and not (ROOT_DIR / "models" / "hfsrm_experiment4e.pth").exists():
+        actual_model = "MSRCAN" if (ROOT_DIR / "models" / "msrcan_experiment4d.pth").exists() else "ResidualCNN"
+    elif model_name == "MSRCAN" and not (ROOT_DIR / "models" / "msrcan_experiment4d.pth").exists():
         actual_model = "ResidualCNN"
         
     runner = ProductionInference(model_type=actual_model)
@@ -239,6 +255,31 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN"):
         Image.fromarray((sub_lr * 255).astype(np.uint8)).save(STATIC_DIR / f"crop_{c_name}_orig.png")
         Image.fromarray((sub_hr * 255).astype(np.uint8)).save(STATIC_DIR / f"crop_{c_name}_enh.png")
         
+    # Save freshly enhanced 4-band GeoTIFF
+    out_tiff_path = OUTPUTS_DIR / f"s2_enhanced_{actual_model.lower()}.tiff"
+    if HAS_RASTERIO and hr_transform is not None:
+        try:
+            with rasterio.open(
+                out_tiff_path,
+                'w',
+                driver='GTiff',
+                height=hr_data.shape[1],
+                width=hr_data.shape[2],
+                count=4,
+                dtype='uint16',
+                crs=src_crs,
+                transform=hr_transform,
+                compress='lzw'
+            ) as dst:
+                hr_uint16 = np.clip(hr_data * 10000.0, 0, 65535).astype(np.uint16)
+                dst.write(hr_uint16)
+                dst.set_band_description(1, 'B02_Blue_SR')
+                dst.set_band_description(2, 'B03_Green_SR')
+                dst.set_band_description(3, 'B04_Red_SR')
+                dst.set_band_description(4, 'B08_NIR_SR')
+        except Exception as e:
+            print(f"[Warning] Failed to write GeoTIFF export: {e}", flush=True)
+
     elapsed = time.time() - start_t
     return {
         "psnr": 39.79,
@@ -372,73 +413,78 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 </div>
             </div>
 
-            <!-- 2. Strict Validation & Metadata Panel -->
+            <!-- 2. Smart Satellite Input Detection & Validation Panel -->
             <div class="glass-panel" id="panel-validate">
                 <div class="panel-header">
-                    <h2><span>🛡️</span> 2. Strict Input Validation</h2>
+                    <h2><span>🛡️</span> 2. Smart Satellite Input Detection & Validation</h2>
                     <span class="panel-step-badge">STEP 2</span>
                 </div>
 
                 <div class="validation-deck">
                     <div class="validation-header-card" id="val-header-card">
-                        <div>
-                            <div class="validation-status-badge" id="val-status-badge">
-                                <span>✅</span> INPUT VALID (Sentinel-2 L2A)
+                        <div style="width: 100%;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                                <div class="validation-status-badge val-status-ready" id="val-status-badge">
+                                    <span>✅</span> READY_FOR_SR (Sentinel-2 L2A)
+                                </div>
+                                <span id="meta-contract" style="font-size: 0.72rem; font-family: var(--font-mono); color: var(--emerald-glow); font-weight: 700;">VALIDATED</span>
                             </div>
-                            <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.2rem;" id="val-product-desc">
-                                Bottom-of-Atmosphere (BOA) 10m Multispectral Product
+                            <div style="font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.35rem;" id="val-product-desc">
+                                Bottom-of-Atmosphere (BOA) 10m Multispectral Product (B02, B03, B04, B08)
+                            </div>
+                            <!-- Notice Banner for Warnings / Errors / Sensor Guidance -->
+                            <div class="val-notice-banner info active" id="val-notice-banner">
+                                Input scene meets the strict Sentinel-2 Super-Resolution contract.
                             </div>
                         </div>
                     </div>
 
-                    <div class="validation-checklist" id="val-checklist">
-                        <div class="validation-check-item">
-                            <span class="check-icon-ok">✓</span>
-                            <div>
-                                <div class="check-title">4 Required Spectral Bands</div>
-                                <div class="check-desc">B02 Blue, B03 Green, B04 Red, B08 NIR present</div>
-                            </div>
+                    <!-- 9-Item Input Summary Grid -->
+                    <div class="metadata-grid" id="meta-container" style="margin-top: 0.75rem; grid-template-columns: repeat(3, 1fr);">
+                        <div class="meta-item">
+                            <div class="meta-label">Detected Sensor</div>
+                            <div class="meta-value" id="meta-product">Sentinel-2</div>
                         </div>
-                        <div class="validation-check-item">
-                            <span class="check-icon-ok">✓</span>
-                            <div>
-                                <div class="check-title">Native Ground Resolution</div>
-                                <div class="check-desc">10.00m GSD verified (Supported range: 2m - 30m)</div>
-                            </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Native Resolution</div>
+                            <div class="meta-value" id="meta-res">10.0m GSD</div>
                         </div>
-                        <div class="validation-check-item">
-                            <span class="check-icon-ok">✓</span>
-                            <div>
-                                <div class="check-title">Georeferencing & CRS</div>
-                                <div class="check-desc">EPSG:32643 (UTM Zone 43N) Affine Transform OK</div>
-                            </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Dimensions</div>
+                            <div class="meta-value" id="meta-dim">2048 × 2048 px</div>
                         </div>
-                        <div class="validation-check-item">
-                            <span class="check-icon-ok">✓</span>
-                            <div>
-                                <div class="check-title">Radiometric & Tensor Integrity</div>
-                                <div class="check-desc">Valid Float32 range [0.0, 1.0], 0 NaNs, 0 Infs</div>
-                            </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Spectral Bands</div>
+                            <div class="meta-value" id="meta-bands">4 Bands (RGB+NIR)</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">CRS Projection</div>
+                            <div class="meta-value" id="meta-crs">EPSG:32643</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Georeferencing</div>
+                            <div class="meta-value" id="meta-geo">VALID (Affine OK)</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Radiometric Depth</div>
+                            <div class="meta-value" id="meta-reflectance">Normalized BOA [0, 1]</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Acquisition Date</div>
+                            <div class="meta-value" id="meta-date">2026-05-15</div>
+                        </div>
+                        <div class="meta-item">
+                            <div class="meta-label">Operational Status</div>
+                            <div class="meta-value" id="meta-status">READY_FOR_SR</div>
                         </div>
                     </div>
-                </div>
 
-                <div class="metadata-grid" id="meta-container">
-                    <div class="meta-item">
-                        <div class="meta-label">Native GSD</div>
-                        <div class="meta-value" id="meta-res">10.0m / px</div>
-                    </div>
-                    <div class="meta-item">
-                        <div class="meta-label">Dimensions</div>
-                        <div class="meta-value" id="meta-dim">2048 × 2048</div>
-                    </div>
-                    <div class="meta-item">
-                        <div class="meta-label">Spectral Bands</div>
-                        <div class="meta-value" id="meta-bands">4 Bands (RGB+NIR)</div>
-                    </div>
-                    <div class="meta-item">
-                        <div class="meta-label">CRS Projection</div>
-                        <div class="meta-value" id="meta-crs">EPSG:32643</div>
+                    <!-- Dynamic Capability Matrix -->
+                    <div class="capabilities-section" id="val-capabilities-container">
+                        <div class="capabilities-title">⚡ Available Analysis & Capabilities Matrix</div>
+                        <div class="capabilities-grid" id="capabilities-grid">
+                            <!-- Dynamically populated via JS -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1647,6 +1693,157 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 if (e.target.files.length) handleUpload(e.target.files[0]);
             });
 
+            function updateValidationUI(val) {
+                if (!val) return;
+
+                // 1. Status Badge & Operational Contract
+                const statusBadge = document.getElementById('val-status-badge');
+                const metaContract = document.getElementById('meta-contract');
+                const valDesc = document.getElementById('val-product-desc');
+                const noticeBanner = document.getElementById('val-notice-banner');
+
+                const level = val.level || (val.is_valid ? 'READY' : 'UNSUPPORTED');
+                if (statusBadge) {
+                    statusBadge.className = 'validation-status-badge';
+                    if (level === 'READY') {
+                        statusBadge.classList.add('val-status-ready');
+                        statusBadge.innerHTML = `<span>✅</span> READY_FOR_SR (${val.detected_sensor || 'Sentinel-2'})`;
+                        if (metaContract) {
+                            metaContract.textContent = 'VALIDATED';
+                            metaContract.style.color = 'var(--emerald-glow)';
+                        }
+                    } else if (level === 'LIMITED') {
+                        statusBadge.classList.add('val-status-limited');
+                        statusBadge.innerHTML = `<span>⚠️</span> LIMITED_COMPATIBILITY (${val.detected_sensor || 'Non-S2'})`;
+                        if (metaContract) {
+                            metaContract.textContent = 'LIMITED';
+                            metaContract.style.color = 'var(--amber-glow)';
+                        }
+                    } else {
+                        statusBadge.classList.add('val-status-unsupported');
+                        statusBadge.innerHTML = `<span>❌</span> UNSUPPORTED (${val.detected_sensor || 'Unknown'})`;
+                        if (metaContract) {
+                            metaContract.textContent = 'UNSUPPORTED';
+                            metaContract.style.color = '#ef4444';
+                        }
+                    }
+                }
+
+                if (valDesc) {
+                    valDesc.textContent = val.detected_product || val.product_type || 'Satellite Raster Scene';
+                }
+
+                // 2. Operational Notice Banner
+                if (noticeBanner) {
+                    noticeBanner.className = 'val-notice-banner active';
+                    if (val.errors && val.errors.length > 0) {
+                        noticeBanner.classList.add('err');
+                        noticeBanner.innerHTML = `<strong>Operational Notice:</strong> ${val.errors.join(' ')}`;
+                    } else if (val.warnings && val.warnings.length > 0) {
+                        noticeBanner.classList.add('warn');
+                        noticeBanner.innerHTML = `<strong>Operational Notice:</strong> ${val.warnings.join(' ')}`;
+                    } else if (level === 'READY') {
+                        noticeBanner.classList.add('info');
+                        noticeBanner.innerHTML = `<strong>Operational Status:</strong> Input scene satisfies the strict Sentinel-2 Super-Resolution contract. All downstream intelligence modules ready.`;
+                    } else {
+                        noticeBanner.classList.add('info');
+                        noticeBanner.innerHTML = `<strong>Operational Status:</strong> ${val.sr_compatibility_message || 'Input analyzed.'}`;
+                    }
+                }
+
+                // 3. 9-Item Summary Grid
+                const elProduct = document.getElementById('meta-product');
+                const elRes = document.getElementById('meta-res');
+                const elDim = document.getElementById('meta-dim');
+                const elBands = document.getElementById('meta-bands');
+                const elCrs = document.getElementById('meta-crs');
+                const elGeo = document.getElementById('meta-geo');
+                const elReflectance = document.getElementById('meta-reflectance');
+                const elDate = document.getElementById('meta-date');
+                const elStatus = document.getElementById('meta-status');
+
+                if (elProduct) elProduct.textContent = val.detected_sensor || val.product_type || 'Sentinel-2';
+                if (elRes) elRes.textContent = val.resolution || (val.gsd ? `${val.gsd.toFixed(1)}m GSD` : '10.0m GSD');
+                if (elDim) elDim.textContent = val.dimensions || '2048 × 2048 px';
+                
+                if (elBands) {
+                    let bandsText = '4 Bands';
+                    if (val.bands) {
+                        bandsText = Array.isArray(val.bands) ? `${val.bands.length} Bands (${val.bands.join(', ')})` : val.bands;
+                    }
+                    elBands.textContent = bandsText;
+                }
+                
+                if (elCrs) elCrs.textContent = val.crs || 'NONE';
+                if (elGeo) elGeo.textContent = val.georeferenced ? 'VALID (Affine OK)' : 'NON-GEOREFERENCED';
+                if (elReflectance) elReflectance.textContent = (val.reflectance_valid !== false) ? 'Normalized BOA [0, 1]' : 'Out of Range / Raw';
+                if (elDate) elDate.textContent = val.acquisition_date || '2026-05-15';
+                if (elStatus) elStatus.textContent = val.status || (level === 'READY' ? 'READY_FOR_SR' : level);
+
+                // 4. Dynamic Capability Matrix
+                const capGrid = document.getElementById('capabilities-grid');
+                if (capGrid) {
+                    capGrid.innerHTML = '';
+                    const caps = val.capabilities || {};
+
+                    const capDisplayOrder = [
+                        { key: 'preview', fallbackLabel: 'Preview & Visual RGB' },
+                        { key: 'sr', fallbackLabel: 'Super-Resolution Engine' },
+                        { key: 'urban', fallbackLabel: 'Urban Intelligence (Built-Up Extent)' },
+                        { key: 'agriculture', fallbackLabel: 'Agriculture (NDVI & Crop Vigor)' },
+                        { key: 'water', fallbackLabel: 'Water Intelligence (NDWI & Shoreline)' },
+                        { key: 'disaster', fallbackLabel: 'Disaster (Flood Inundation)' },
+                        { key: 'oil_spill', fallbackLabel: 'Oil Spill Intelligence (SOSI & UNet)' },
+                        { key: 'geospatial_measurement', fallbackLabel: 'GIS Coordinate Tracking' },
+                        { key: 'geojson_export', fallbackLabel: 'GeoJSON Vector Export' },
+                        { key: 'geotiff_export', fallbackLabel: 'GeoTIFF Raster Export' },
+                        { key: 'visual_export', fallbackLabel: 'Visual RGB PNG Export' }
+                    ];
+
+                    capDisplayOrder.forEach(item => {
+                        const c = caps[item.key] || { supported: true, label: item.fallbackLabel, reason: '' };
+                        const label = c.label || item.fallbackLabel;
+                        const supported = c.supported !== false;
+                        const chip = document.createElement('div');
+                        chip.className = `cap-chip ${supported ? 'supported' : 'unsupported'}`;
+                        chip.title = c.reason || (supported ? 'Ready & Supported' : 'Restricted for this input');
+                        chip.innerHTML = `
+                            <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;">${label}</span>
+                            ${supported ? '<span class="cap-badge-ok">✓ Ready</span>' : '<span class="cap-badge-no">✕ Restricted</span>'}
+                        `;
+                        capGrid.appendChild(chip);
+                    });
+                }
+
+                // 5. SR Button & AI Model State
+                const caps = val.capabilities || {};
+                const srCap = caps.sr || { supported: true };
+                if (srCap.supported === false) {
+                    btnEnhance.disabled = true;
+                    btnEnhance.classList.add('disabled-btn');
+                    btnEnhance.title = srCap.reason || 'Input incompatible with Sentinel-2 SR model contract.';
+                    modelCards.forEach(c => c.classList.add('disabled'));
+                } else {
+                    btnEnhance.disabled = false;
+                    btnEnhance.classList.remove('disabled-btn');
+                    btnEnhance.title = 'Execute Super-Resolution';
+                    modelCards.forEach(c => c.classList.remove('disabled'));
+                }
+
+                // 6. Disable/enable intelligence domain cards based on capabilities
+                intelCards.forEach(card => {
+                    const dom = card.getAttribute('data-domain');
+                    const domCap = caps[dom];
+                    if (domCap && domCap.supported === false) {
+                        card.classList.add('disabled');
+                        card.title = domCap.reason || 'Domain not supported for this input';
+                    } else {
+                        card.classList.remove('disabled');
+                        card.title = '';
+                    }
+                });
+            }
+
             function handleUpload(file) {
                 const formData = new FormData();
                 formData.append('file', file);
@@ -1655,10 +1852,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 .then(r => r.json())
                 .then(data => {
                     if (data.metadata) {
-                        document.getElementById('meta-res').textContent = data.metadata.resolution || '10.0m GSD';
-                        document.getElementById('meta-dim').textContent = data.metadata.dimensions || '2048 × 2048';
-                        document.getElementById('meta-bands').textContent = data.metadata.bands || '4 Bands (RGB+NIR)';
-                        document.getElementById('meta-crs').textContent = data.metadata.crs || 'EPSG:32643';
+                        updateValidationUI(data.metadata);
                     }
                     updateGuideStep(2);
                 });
@@ -1672,6 +1866,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 roiPills.forEach(p => p.classList.toggle('active', p.getAttribute('data-roi') === 'full'));
                 updateInspectLayers();
             });
+
+            // Initial Metadata & Validation Fetch on Startup
+            fetch('/api/metadata')
+            .then(r => r.json())
+            .then(data => {
+                updateValidationUI(data);
+            })
+            .catch(err => console.log('Metadata load:', err));
 
             // Initialize Water Intelligence on start
             loadDomainIntelligence('water');
@@ -1702,6 +1904,15 @@ class UniversalRequestHandler(http.server.SimpleHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
         
+        # 0. Health Check
+        if path == "/health":
+            resp = {
+                "status": "ok",
+                "service": "TERRA-SR"
+            }
+            self.send_bytes_response(json.dumps(resp).encode('utf-8'), "application/json")
+            return
+
         # 1. Main UI
         if path in ["/", "/index.html"]:
             self.send_bytes_response(HTML_TEMPLATE.encode('utf-8'), "text/html; charset=utf-8")
@@ -1933,8 +2144,8 @@ def run_server(port=PORT):
         print("[TERRA-SR Engine] Layer assets cached and verified.", flush=True)
         
     socketserver.ThreadingTCPServer.allow_reuse_address = True
-    with socketserver.ThreadingTCPServer(("", port), UniversalRequestHandler) as httpd:
-        print(f"\n[TERRA-SR Engine] Live at http://localhost:{port}/", flush=True)
+    with socketserver.ThreadingTCPServer(("0.0.0.0", port), UniversalRequestHandler) as httpd:
+        print(f"\n[TERRA-SR Engine] Live at http://0.0.0.0:{port}/", flush=True)
         print("[TERRA-SR Engine] Press Ctrl+C to terminate.\n", flush=True)
         try:
             httpd.serve_forever()
