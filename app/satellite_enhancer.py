@@ -39,11 +39,6 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-import torch
-import torch.nn.functional as F
-
-from src.super_resolution.inference import ProductionInference, MODEL_REGISTRY
-from src.intelligence import run_intelligence_pipeline, INTELLIGENCE_REGISTRY
 from src.core.input_validation import SatelliteInputValidator, InputValidationResult
 from src.core.georeference import transform_projected_to_latlon, verify_georeferencing_integrity
 from src.core.analysis_result import (
@@ -66,10 +61,6 @@ from src.satellite import (
     search_copernicus_catalog,
     retrieve_aoi_raster
 )
-from src.reporting.report_generator import ScientificReportGenerator
-from src.reporting.video_generator import MissionVideoGenerator
-from src.reporting.narrator import ScientificNarrator
-from src.reporting.package_exporter import ResearchPackageExporter
 
 try:
     import rasterio
@@ -198,7 +189,11 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
     print(f"[TERRA-SR Engine] Input Validation: {val_res.status} ({val_res.detected_product})", flush=True)
 
     start_t = time.time()
-    
+    import torch
+    import torch.nn.functional as F
+    from src.super_resolution.inference import ProductionInference, MODEL_REGISTRY
+    from src.intelligence import run_intelligence_pipeline
+
     actual_model = model_name
     if model_name not in MODEL_REGISTRY:
         actual_model = "ResidualCNN"
@@ -215,8 +210,9 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
         src_transform = src.transform
         src_crs = src.crs.to_string() if src.crs else "EPSG:32643"
         
-    tensor_in = torch.tensor(lr_data, dtype=torch.float32)
+    tensor_in = torch.from_numpy(lr_data)
     hr_data = runner.enhance_tensor(tensor_in)
+    del tensor_in
     
     scale_mult = hr_data.shape[1] // lr_data.shape[1]
     gsd_val = 10.0 / scale_mult
@@ -245,35 +241,41 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
     ndvi_cmap = mpl.colormaps.get_cmap("RdYlGn")
     lr_ndvi = np.clip((lr_data[3] - lr_data[2]) / (lr_data[3] + lr_data[2] + 1e-7), -1, 1)
     hr_ndvi = np.clip((hr_data[3] - hr_data[2]) / (hr_data[3] + hr_data[2] + 1e-7), -1, 1)
-    Image.fromarray((ndvi_cmap((lr_ndvi + 1)/2)[..., :3] * 255).astype(np.uint8)).save(STATIC_DIR / "active_orig_ndvi.png")
-    Image.fromarray((ndvi_cmap((hr_ndvi + 1)/2)[..., :3] * 255).astype(np.uint8)).save(STATIC_DIR / "active_enh_ndvi.png")
+    Image.fromarray(ndvi_cmap((lr_ndvi + 1) / 2, bytes=True)[..., :3]).save(STATIC_DIR / "active_orig_ndvi.png")
+    Image.fromarray(ndvi_cmap((hr_ndvi + 1) / 2, bytes=True)[..., :3]).save(STATIC_DIR / "active_enh_ndvi.png")
+    del lr_ndvi, hr_ndvi
     
     # 4. NDWI Maps
     ndwi_cmap = mpl.colormaps.get_cmap("Blues")
     lr_ndwi = np.clip((lr_data[1] - lr_data[3]) / (lr_data[1] + lr_data[3] + 1e-7), -1, 1)
     hr_ndwi = np.clip((hr_data[1] - hr_data[3]) / (hr_data[1] + hr_data[3] + 1e-7), -1, 1)
-    Image.fromarray((ndwi_cmap((lr_ndwi + 0.5)/1.5)[..., :3] * 255).astype(np.uint8)).save(STATIC_DIR / "active_orig_ndwi.png")
-    Image.fromarray((ndwi_cmap((hr_ndwi + 0.5)/1.5)[..., :3] * 255).astype(np.uint8)).save(STATIC_DIR / "active_enh_ndwi.png")
+    Image.fromarray(ndwi_cmap((lr_ndwi + 0.5) / 1.5, bytes=True)[..., :3]).save(STATIC_DIR / "active_orig_ndwi.png")
+    Image.fromarray(ndwi_cmap((hr_ndwi + 0.5) / 1.5, bytes=True)[..., :3]).save(STATIC_DIR / "active_enh_ndwi.png")
+    del lr_ndwi, hr_ndwi
     
     # 5. Edge Energy Maps
     edge_cmap = mpl.colormaps.get_cmap("magma")
     lr_edge = compute_sobel_gradient(lr_data[2])
     hr_edge = compute_sobel_gradient(hr_data[2])
-    Image.fromarray((edge_cmap(lr_edge)[..., :3] * 255).astype(np.uint8)).save(STATIC_DIR / "active_orig_edge.png")
-    Image.fromarray((edge_cmap(hr_edge)[..., :3] * 255).astype(np.uint8)).save(STATIC_DIR / "active_enh_edge.png")
+    Image.fromarray(edge_cmap(lr_edge, bytes=True)[..., :3]).save(STATIC_DIR / "active_orig_edge.png")
+    Image.fromarray(edge_cmap(hr_edge, bytes=True)[..., :3]).save(STATIC_DIR / "active_enh_edge.png")
     
     # 6. Real Difference Analysis Layer
-    lr_tensor = torch.tensor(lr_rgb_str).permute(2, 0, 1).unsqueeze(0).float()
+    lr_tensor = torch.from_numpy(lr_rgb_str).permute(2, 0, 1).unsqueeze(0)
     lr_upscaled = F.interpolate(lr_tensor, size=(hr_rgb_str.shape[0], hr_rgb_str.shape[1]), mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0).numpy()
     diff_rgb = np.abs(hr_rgb_str - lr_upscaled)
     mean_abs_diff = float(np.mean(diff_rgb))
+    del lr_tensor, lr_upscaled
     
     diff_cmap = mpl.colormaps.get_cmap("inferno")
     diff_mag = np.mean(diff_rgb, axis=-1)
-    diff_vis = (diff_cmap(np.clip(diff_mag * 3.5, 0, 1))[..., :3] * 255).astype(np.uint8)
+    del diff_rgb
+    diff_vis = diff_cmap(np.clip(diff_mag * 3.5, 0, 1), bytes=True)[..., :3]
+    del diff_mag
     Image.fromarray(diff_vis).save(STATIC_DIR / "active_orig_diff.png")
     Image.fromarray(diff_vis).save(STATIC_DIR / "active_enh_diff.png")
     Image.fromarray(diff_vis).save(OUTPUTS_DIR / "difference_map.png")
+    del diff_vis
     
     # Model metrics mapping
     metrics_map = {
@@ -316,6 +318,9 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
                 json.dump(intel_res["report"], f, indent=4)
                 
             CURRENT_STATE["intelligence_reports"][dom] = intel_res["report"]
+            del intel_res
+            import gc
+            gc.collect()
         except Exception as e:
             print(f"[Warning] Intelligence domain {dom}: {e}", flush=True)
             
@@ -2558,11 +2563,9 @@ class UniversalRequestHandler(http.server.SimpleHTTPRequestHandler):
         # Canonical AnalysisResult Endpoint
         elif path == "/api/analysis_result":
             res = CURRENT_STATE.get("analysis_result")
-            if res is not None:
-                resp_data = res.to_dict()
-            else:
-                resp_data = {"status": "NOT_INITIALIZED"}
-            self.send_bytes_response(json.dumps(resp_data).encode('utf-8'), "application/json")
+            if res is None:
+                res = AnalysisResult(mission_id="TSR-DEFAULT-00001")
+            self.send_bytes_response(json.dumps(res.to_dict()).encode('utf-8'), "application/json")
             return
 
         # Metadata API
@@ -2989,6 +2992,7 @@ class UniversalRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # 8. Report Generation API
         elif path == "/api/generate_report":
+            from src.reporting.report_generator import ScientificReportGenerator
             analysis_res = CURRENT_STATE.get("analysis_result")
             if not analysis_res:
                 generate_layer_assets(CURRENT_STATE["active_image_path"], model_name=CURRENT_STATE["active_model"])
@@ -3007,6 +3011,7 @@ class UniversalRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # 9. Video Generation API
         elif path == "/api/generate_video":
+            from src.reporting.video_generator import MissionVideoGenerator
             analysis_res = CURRENT_STATE.get("analysis_result")
             if not analysis_res:
                 generate_layer_assets(CURRENT_STATE["active_image_path"], model_name=CURRENT_STATE["active_model"])
@@ -3025,6 +3030,7 @@ class UniversalRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # 10. Narration Generation API
         elif path == "/api/generate_narration":
+            from src.reporting.narrator import ScientificNarrator
             content_len = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_len) if content_len > 0 else b'{}'
             try:
@@ -3056,6 +3062,7 @@ class UniversalRequestHandler(http.server.SimpleHTTPRequestHandler):
 
         # 11. Package Export API
         elif path == "/api/export_package":
+            from src.reporting.package_exporter import ResearchPackageExporter
             analysis_res = CURRENT_STATE.get("analysis_result")
             if not analysis_res:
                 generate_layer_assets(CURRENT_STATE["active_image_path"], model_name=CURRENT_STATE["active_model"])
@@ -3101,12 +3108,7 @@ def run_server(port=PORT):
     print("=" * 65)
     print("TERRA-SR Earth Observation AOI Satellite Intelligence Platform")
     print("=" * 65)
-    
-    if not (STATIC_DIR / "active_orig_rgb.png").exists():
-        print("[TERRA-SR Engine] Initializing and synthesizing baseline layer assets...", flush=True)
-        generate_layer_assets(DEFAULT_INPUT_TIFF, model_name="ResidualCNN")
-    else:
-        print("[TERRA-SR Engine] Layer assets verified and cached.", flush=True)
+    print("[TERRA-SR Engine] Server initialized (Lazy mode active for 512MB RAM compatibility).", flush=True)
         
     socketserver.ThreadingTCPServer.allow_reuse_address = True
     with socketserver.ThreadingTCPServer(("0.0.0.0", port), UniversalRequestHandler) as httpd:

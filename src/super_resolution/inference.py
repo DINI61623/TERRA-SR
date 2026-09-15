@@ -123,6 +123,11 @@ class ProductionInference:
             if cache_key in _GLOBAL_MODEL_CACHE:
                 self.model = _GLOBAL_MODEL_CACHE[cache_key]
             else:
+                # Evict old cached models to prevent multiple models consuming RAM simultaneously
+                _GLOBAL_MODEL_CACHE.clear()
+                import gc
+                gc.collect()
+
                 weights_file = Path(checkpoint_path) if checkpoint_path else cfg["weights"]
                 if weights_file and not weights_file.exists():
                     candidate = ROOT_DIR / weights_file
@@ -145,17 +150,22 @@ class ProductionInference:
                 _GLOBAL_MODEL_CACHE[cache_key] = model_instance
                 self.model = model_instance
 
-    def enhance_tensor(self, tensor_4ch):
+    def enhance_tensor(self, tensor_4ch, tile_size=256, overlap=16):
         """
         Runs neural forward pass on a 4-channel PyTorch tensor (1, 4, H, W) or (4, H, W).
+        Uses memory-safe tiled inference for large tensors to stay strictly below memory limits.
         Returns enhanced Float32 numpy array (4, H*scale, W*scale) in [0.0, 1.0].
         """
+        if isinstance(tensor_4ch, np.ndarray):
+            tensor_4ch = torch.from_numpy(tensor_4ch)
         if tensor_4ch.ndim == 3:
             tensor_4ch = tensor_4ch.unsqueeze(0)
             
         tensor_4ch = tensor_4ch.to(self.device)
+        B, C, H, W = tensor_4ch.shape
+        scale = self.upscale_factor
         
-        with torch.no_grad():
+        with torch.inference_mode():
             if self.model_type == "Bilinear":
                 out = F.interpolate(
                     tensor_4ch, 
@@ -163,12 +173,37 @@ class ProductionInference:
                     mode='bilinear', 
                     align_corners=False
                 )
+                out_np = out.squeeze(0).cpu().numpy()
+            elif H > tile_size or W > tile_size:
+                # Memory-safe tiled inference for medium/large spatial dimensions
+                out_np = np.zeros((C, H * scale, W * scale), dtype=np.float32)
+                for y in range(0, H, tile_size):
+                    for x in range(0, W, tile_size):
+                        y_start = max(0, y - overlap)
+                        y_end = min(H, y + tile_size + overlap)
+                        x_start = max(0, x - overlap)
+                        x_end = min(W, x + tile_size + overlap)
+                        
+                        tile = tensor_4ch[:, :, y_start:y_end, x_start:x_end]
+                        tile_out = self.model(tile)
+                        if isinstance(tile_out, tuple):
+                            tile_out = tile_out[0]
+                        tile_np = tile_out.squeeze(0).cpu().numpy()
+                        
+                        pred_y_offset = (y - y_start) * scale
+                        pred_x_offset = (x - x_start) * scale
+                        out_h = min(tile_size, H - y) * scale
+                        out_w = min(tile_size, W - x) * scale
+                        
+                        out_np[:, y*scale : y*scale + out_h, x*scale : x*scale + out_w] = tile_np[
+                            :, pred_y_offset : pred_y_offset + out_h, pred_x_offset : pred_x_offset + out_w
+                        ]
             else:
                 out = self.model(tensor_4ch)
                 if isinstance(out, tuple):
                     out = out[0]
+                out_np = out.squeeze(0).cpu().numpy()
                 
-        out_np = out.squeeze(0).cpu().numpy()
         return np.clip(out_np, 0.0, 1.0)
 
     def run_tiled_inference(self, input_path, output_path, tile_size=256, overlap=16):

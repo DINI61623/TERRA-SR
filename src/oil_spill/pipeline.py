@@ -73,24 +73,26 @@ class OilSpillDetector:
         valid_water = compute_valid_marine_aoi(sr_cube, ndwi_threshold=0.0, buffer_pixels=3)
         
         # 3. Model Inference (Tiled for fast memory-safe execution on large scenes)
-        raw_pred_mask = np.zeros((H, W), dtype=np.int64)
-        tile_size = 512
-        with torch.no_grad():
-            if H <= 512 and W <= 512:
-                tensor_in = torch.tensor(feature_cube, dtype=torch.float32).unsqueeze(0).to(self.device)
+        raw_pred_mask = np.zeros((H, W), dtype=np.uint8)
+        tile_size = 256
+        with torch.inference_mode():
+            if H <= tile_size and W <= tile_size:
+                tensor_in = torch.from_numpy(feature_cube).unsqueeze(0).to(self.device)
                 logits = self.model(tensor_in)
                 probs = F.softmax(logits, dim=1).squeeze(0).cpu().numpy()
-                raw_pred_mask = np.argmax(probs, axis=0)
+                raw_pred_mask = np.argmax(probs, axis=0).astype(np.uint8)
+                del tensor_in, logits, probs
             else:
                 for r in range(0, H, tile_size):
                     for c in range(0, W, tile_size):
                         r_end = min(r + tile_size, H)
                         c_end = min(c + tile_size, W)
                         sub_feat = feature_cube[:, r:r_end, c:c_end]
-                        t_sub = torch.tensor(sub_feat, dtype=torch.float32).unsqueeze(0).to(self.device)
+                        t_sub = torch.from_numpy(sub_feat).unsqueeze(0).to(self.device)
                         l_sub = self.model(t_sub)
                         p_sub = F.softmax(l_sub, dim=1).squeeze(0).cpu().numpy()
-                        raw_pred_mask[r:r_end, c:c_end] = np.argmax(p_sub, axis=0)
+                        raw_pred_mask[r:r_end, c:c_end] = np.argmax(p_sub, axis=0).astype(np.uint8)
+                        del t_sub, l_sub, p_sub
 
         # Apply water mask constraint (oil can only exist on water)
         raw_pred_mask[~valid_water] = 0
