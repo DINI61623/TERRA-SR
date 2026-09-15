@@ -184,3 +184,9 @@ class TestServerEndpoints:
             assert "carto_api_key_configured" in config_data
             assert isinstance(config_data["carto_api_key_configured"], bool)
 
+    def test_vercel_entrypoint_adapter(self):
+        from api.index import handler as vercel_handler
+        assert issubclass(vercel_handler, http.server.BaseHTTPRequestHandler)
+        assert vercel_handler == UniversalRequestHandler
+
+

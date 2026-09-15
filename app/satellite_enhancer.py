@@ -87,8 +87,12 @@ DATA_DIR = ROOT_DIR / "data"
 S2_PROCESSED_TIFF = DATA_DIR / "processed" / "s2_10m_stacked_roi.tiff"
 DEFAULT_INPUT_TIFF = S2_PROCESSED_TIFF if S2_PROCESSED_TIFF.exists() else (OUTPUTS_DIR / "s2_5m_upscaled_bilinear.tiff")
 
-STATIC_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+try:
+    STATIC_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+
 
 # Application Global State Store
 CURRENT_STATE = {
