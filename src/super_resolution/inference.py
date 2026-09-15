@@ -24,7 +24,9 @@ import numpy as np
 from pathlib import Path
 
 # Add workspace root to Python path
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 import torch
 import torch.nn as nn
@@ -60,7 +62,7 @@ MODEL_REGISTRY = {
         "class": ResidualCNN,
         "weights": Path("models/residual_srm_experiment3.pth"),
         "kwargs": {"in_channels": 4, "num_features": 32, "num_blocks": 3, "upscale_factor": 2},
-        "description": "Deep Residual Network with Skip Connections (Experiment 3)"
+        "description": "Deep Residual Network with Skip Connections (Experiment 3 - Validated Engine)"
     },
     "MSRCAN": {
         "class": MSRCAN,
@@ -78,19 +80,22 @@ MODEL_REGISTRY = {
         "class": PIRCAN,
         "weights": Path("models/final_sr/best_model.pth"),
         "kwargs": {"in_channels": 4, "out_channels": 4, "num_features": 48, "num_groups": 3, "num_rcab": 4, "reduction": 8, "upscale_factor": 3},
-        "description": "PI-RCAN Multi-Scale Physics-Informed SRM (<4m Target Met: 3.33m GSD)"
+        "description": "PI-RCAN Multi-Scale Physics-Informed SRM (3.33m GSD Grid)"
     },
     "PIRCAN_3X": {
         "class": PIRCAN,
         "weights": Path("models/final_sr/best_model.pth"),
         "kwargs": {"in_channels": 4, "out_channels": 4, "num_features": 48, "num_groups": 3, "num_rcab": 4, "reduction": 8, "upscale_factor": 3},
-        "description": "PI-RCAN Multi-Scale Physics-Informed SRM (<4m Target Met: 3.33m GSD)"
+        "description": "PI-RCAN Multi-Scale Physics-Informed SRM (3.33m GSD Grid)"
     }
 }
 
+# Global in-memory cache for initialized PyTorch models
+_GLOBAL_MODEL_CACHE = {}
+
 
 class ProductionInference:
-    def __init__(self, model_type="HFSRM", checkpoint_path=None, upscale_factor=2, device=None):
+    def __init__(self, model_type="ResidualCNN", checkpoint_path=None, upscale_factor=2, device=None):
         """
         Args:
             model_type (str): Key in MODEL_REGISTRY ('Bilinear', 'ESPCN', 'ResidualCNN', 'MSRCAN', 'HFSRM', 'PIRCAN').
@@ -113,23 +118,32 @@ class ProductionInference:
         
         if model_type == "Bilinear":
             self.model = None
-            print(f"[Inference] Initialized Bilinear analytical pipeline (upscale x{self.upscale_factor})")
         else:
-            weights_file = Path(checkpoint_path) if checkpoint_path else cfg["weights"]
-            if weights_file and not weights_file.exists():
-                candidate = Path(__file__).resolve().parent.parent.parent / weights_file
-                if candidate.exists():
-                    weights_file = candidate
-            model_cls = cfg["class"]
-            kwargs = cfg.get("kwargs", {"in_channels": 4, "upscale_factor": self.upscale_factor})
-            
-            self.model = model_cls(**kwargs).to(self.device)
-            if weights_file and weights_file.exists():
-                self.model.load_state_dict(torch.load(weights_file, map_location=self.device))
-                print(f"[Inference] Loaded {model_type} weights from: {weights_file}")
+            cache_key = (model_type, str(checkpoint_path) if checkpoint_path else "default", str(self.device))
+            if cache_key in _GLOBAL_MODEL_CACHE:
+                self.model = _GLOBAL_MODEL_CACHE[cache_key]
             else:
-                print(f"[Warning] Weights file not found at {weights_file}. Using uninitialized model.")
-            self.model.eval()
+                weights_file = Path(checkpoint_path) if checkpoint_path else cfg["weights"]
+                if weights_file and not weights_file.exists():
+                    candidate = ROOT_DIR / weights_file
+                    if candidate.exists():
+                        weights_file = candidate
+                model_cls = cfg["class"]
+                kwargs = cfg.get("kwargs", {"in_channels": 4, "upscale_factor": self.upscale_factor})
+                
+                model_instance = model_cls(**kwargs).to(self.device)
+                if weights_file and weights_file.exists():
+                    try:
+                        state = torch.load(weights_file, map_location=self.device)
+                        model_instance.load_state_dict(state)
+                        print(f"[Inference] Loaded & cached {model_type} weights from: {weights_file}")
+                    except Exception as e:
+                        print(f"[Warning] Failed to load {model_type} state_dict: {e}")
+                else:
+                    print(f"[Warning] Weights file not found at {weights_file}. Using uninitialized model.")
+                model_instance.eval()
+                _GLOBAL_MODEL_CACHE[cache_key] = model_instance
+                self.model = model_instance
 
     def enhance_tensor(self, tensor_4ch):
         """
@@ -190,7 +204,7 @@ class ProductionInference:
                 
             out_res_x = src.res[0] / self.upscale_factor
             out_res_y = src.res[1] / self.upscale_factor
-            out_transform = transform * Affine.scale(1 / self.upscale_factor)
+            out_transform = transform @ Affine.scale(1 / self.upscale_factor)
             
             out_width = width * self.upscale_factor
             out_height = height * self.upscale_factor

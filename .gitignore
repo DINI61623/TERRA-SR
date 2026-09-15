@@ -21,10 +21,21 @@ venv/
 env/
 ENV/
 
-# Data & Datasets
-data/
+# Data & Large Datasets (Keep required demo reference data)
+data/raw/
+data/uploads/
+data/samples/
 *.jp2
 *.npy
+
+# Large Archives & Audit Packages
+*.zip
+*.tar.gz
+*.tar
+*.tgz
+*.rar
+*.7z
+TERRA-SR_*.zip
 
 # Generated Model Outputs & Intermediate Artifacts
 outputs/
@@ -32,7 +43,7 @@ scratch/
 *.log
 *.tmp
 
-# Web App Dynamic/Generated Previews (Keep CSS)
+# Web App Dynamic/Generated Previews (Keep CSS & base UI assets)
 app/static/*.png
 
 # OS / IDE Artifacts
@@ -43,3 +54,4 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+

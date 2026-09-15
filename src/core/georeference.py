@@ -23,8 +23,11 @@ except ImportError:
     HAS_PYPROJ = False
 
 
+import functools
+
+@functools.lru_cache(maxsize=32)
 def get_transformer_to_wgs84(crs_str: str) -> Optional[Any]:
-    """Builds a pyproj Transformer from input CRS to WGS84 (EPSG:4326)."""
+    """Builds a cached pyproj Transformer from input CRS to WGS84 (EPSG:4326)."""
     if not HAS_PYPROJ or not crs_str:
         return None
     try:

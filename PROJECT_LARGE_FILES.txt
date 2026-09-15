@@ -1,0 +1,141 @@
+====================================================================================================
+TERRA-SR PROJECT — LARGE FILES MANIFEST & STATUS IN AUDIT ARCHIVE
+====================================================================================================
+
+This document inventories all high-capacity assets (raw satellite JP2 bands, pre-stacked GeoTIFF cubes,
+model weight checkpoints, and GIS raster/vector outputs) across the TERRA-SR codebase.
+
+ALL OF THE FOLLOWING FILES ARE INCLUDED IN THIS COMPLETE SOURCE AUDIT PACKAGE.
+
+----------------------------------------------------------------------------------------------------
+1. RAW SATELLITE BANDS (SENTINEL-2 L2A BOA REFLECTANCE)
+----------------------------------------------------------------------------------------------------
+FILE PATH:                  data/raw/sentinel2/S2B_MSIL2A_20260211T050839_N0512_R019_T43PGQ_20260211T085923_Blue_10m.jp2
+SIZE:                       119.70 MB (125,510,029 bytes)
+PURPOSE:                    Sentinel-2 L2A Band 2 (490 nm Blue, 10m GSD) BOA Surface Reflectance. Used for RGB composite & multi-band SR.
+WHETHER REQUIRED TO RUN:    No (Offline Demo Mode uses processed ROI cubes; required for full scene raw ingestion testing)
+WHETHER REQUIRED TO REPRODUCE RESULTS: Yes (for end-to-end raw ingestion to SR pipeline reproduction)
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  data/raw/sentinel2/S2B_MSIL2A_20260211T050839_N0512_R019_T43PGQ_20260211T085923_Green_10m.jp2
+SIZE:                       123.91 MB (129,928,685 bytes)
+PURPOSE:                    Sentinel-2 L2A Band 3 (560 nm Green, 10m GSD) BOA Surface Reflectance. Used for NDWI & True Color generation.
+WHETHER REQUIRED TO RUN:    No (processed ROI available; required for full scene raw ingestion)
+WHETHER REQUIRED TO REPRODUCE RESULTS: Yes (for raw ingest benchmarks)
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  data/raw/sentinel2/S2B_MSIL2A_20260211T050839_N0512_R019_T43PGQ_20260211T085923_Red_10m.jp2
+SIZE:                       128.98 MB (135,242,676 bytes)
+PURPOSE:                    Sentinel-2 L2A Band 4 (665 nm Red, 10m GSD) BOA Surface Reflectance. Used for NDVI calculation & True Color.
+WHETHER REQUIRED TO RUN:    No (processed ROI available; required for full scene raw ingestion)
+WHETHER REQUIRED TO REPRODUCE RESULTS: Yes (for raw ingest benchmarks)
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  data/raw/sentinel2/S2B_MSIL2A_20260211T050839_N0512_R019_T43PGQ_20260211T085923_NIR_10m.jp2
+SIZE:                       129.31 MB (135,595,352 bytes)
+PURPOSE:                    Sentinel-2 L2A Band 8 (842 nm NIR, 10m GSD) BOA Surface Reflectance. Used for NDVI, NDWI, & Edge Guidance.
+WHETHER REQUIRED TO RUN:    No (processed ROI available; required for full scene raw ingestion)
+WHETHER REQUIRED TO REPRODUCE RESULTS: Yes (for raw ingest benchmarks)
+INCLUDED IN ARCHIVE:        YES
+
+----------------------------------------------------------------------------------------------------
+2. PROCESSED & CALIBRATED DATASETS
+----------------------------------------------------------------------------------------------------
+FILE PATH:                  data/processed/s2_10m_stacked_roi.npy
+SIZE:                       16.00 MB (16,777,344 bytes)
+PURPOSE:                    Calibrated 4-band float32 [0, 1] stacked array (1024x1024x4) covering the validated benchmark ROI.
+WHETHER REQUIRED TO RUN:    YES (Primary runtime benchmark tensor)
+WHETHER REQUIRED TO REPRODUCE RESULTS: YES (Required for controlled studies and benchmark evaluations)
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  data/processed/s2_10m_stacked_roi.tiff
+SIZE:                       16.00 MB (16,777,622 bytes)
+PURPOSE:                    Georeferenced 4-band GeoTIFF with EPSG:32643 UTM projection and affine matrix.
+WHETHER REQUIRED TO RUN:    YES (Standard input for CLI batch processing and web platform demo)
+WHETHER REQUIRED TO REPRODUCE RESULTS: YES
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  data/processed/mock_s2_rgb_stacked.npy
+SIZE:                       0.19 MB (196,736 bytes)
+PURPOSE:                    Synthetic compact 4-band patch for rapid testing without large memory footprints.
+WHETHER REQUIRED TO RUN:    No (used in quick unit tests)
+WHETHER REQUIRED TO REPRODUCE RESULTS: No
+INCLUDED IN ARCHIVE:        YES
+
+----------------------------------------------------------------------------------------------------
+3. TRAINED MODEL CHECKPOINTS
+----------------------------------------------------------------------------------------------------
+FILE PATH:                  models/final_sr/best_model.pth
+SIZE:                       3.13 MB (3,277,951 bytes)
+PURPOSE:                    Certified Production Multi-Scale PI-RCAN Model Weights (Experiment 5, 807,984 parameters).
+WHETHER REQUIRED TO RUN:    YES (Production inference engine)
+WHETHER REQUIRED TO REPRODUCE RESULTS: YES
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  models/pircan_scale_x3.pth
+SIZE:                       3.13 MB (3,277,951 bytes)
+PURPOSE:                    Dedicated Scale x3 (3.33m GSD) PI-RCAN checkpoint.
+WHETHER REQUIRED TO RUN:    YES (For multi-scale <4m GSD inference)
+WHETHER REQUIRED TO REPRODUCE RESULTS: YES
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  models/pircan_experiment4f.pth
+SIZE:                       2.73 MB (2,862,775 bytes)
+PURPOSE:                    PI-RCAN Scale x2 (5.0m GSD) dual-head reflectance + uncertainty checkpoint (715,696 parameters).
+WHETHER REQUIRED TO RUN:    YES (Used in 6-way benchmark evaluation)
+WHETHER REQUIRED TO REPRODUCE RESULTS: YES
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  models/msrcan_experiment4d.pth
+SIZE:                       2.42 MB (2,537,121 bytes)
+PURPOSE:                    MS-RCAN Residual-in-Residual with Channel Attention checkpoint (621,501 parameters).
+WHETHER REQUIRED TO RUN:    YES (Used in 6-way benchmark evaluation and CLI `--model MSRCAN`)
+WHETHER REQUIRED TO REPRODUCE RESULTS: YES
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  models/hfsrm_experiment4e.pth
+SIZE:                       1.56 MB (1,636,917 bytes)
+PURPOSE:                    HF-SRM High-Frequency Residual Attention checkpoint (425,760 parameters).
+WHETHER REQUIRED TO RUN:    YES (Used in 6-way benchmark evaluation and CLI `--model HFSRM`)
+WHETHER REQUIRED TO REPRODUCE RESULTS: YES
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  models/residual_srm_experiment3.pth
+SIZE:                       0.24 MB (251,753 bytes)
+PURPOSE:                    Deep Residual CNN checkpoint (Exp 3, 61,092 parameters).
+WHETHER REQUIRED TO RUN:    YES (Used in CLI default inference and benchmark suite)
+WHETHER REQUIRED TO REPRODUCE RESULTS: YES
+INCLUDED IN ARCHIVE:        YES
+
+FILE PATH:                  models/espcn_srm_synthetic.pth
+SIZE:                       0.12 MB (121,445 bytes)
+PURPOSE:                    Sub-Pixel Convolutional Neural Network (ESPCN, 28,996 parameters).
+WHETHER REQUIRED TO RUN:    YES (Used in baseline benchmarking)
+WHETHER REQUIRED TO REPRODUCE RESULTS: YES
+INCLUDED IN ARCHIVE:        YES
+
+----------------------------------------------------------------------------------------------------
+4. PRE-COMPUTED OUTPUTS & VECTOR GEODATABASES
+----------------------------------------------------------------------------------------------------
+FILE PATH:                  outputs/cli_test/enhanced_residualcnn_cube.tiff (256.03 MB)
+FILE PATH:                  outputs/test_cli_out/enhanced_bilinear_cube.tiff (256.03 MB)
+FILE PATH:                  outputs/s2_enhanced_pircan.tiff (144.00 MB)
+FILE PATH:                  outputs/s2_5.0m_upscaled_bilinear.tiff (64.01 MB)
+FILE PATH:                  outputs/s2_5.0m_upscaled_espcn_inference.tiff (64.00 MB)
+FILE PATH:                  outputs/s2_5m_upscaled_bilinear.tiff (64.00 MB)
+FILE PATH:                  outputs/s2_5m_upscaled_residual.tiff (64.01 MB)
+FILE PATH:                  outputs/s2_enhanced_hfsrm.tiff (64.00 MB)
+FILE PATH:                  outputs/s2_enhanced_msrcan.tiff (64.00 MB)
+FILE PATH:                  outputs/urban_intelligence_vectors.geojson (10.08 MB)
+FILE PATH:                  outputs/agriculture_intelligence_vectors.geojson (8.04 MB)
+FILE PATH:                  outputs/experiment4a_edge_analysis.png (8.09 MB)
+FILE PATH:                  outputs/experiment4a_zoom_comparison.png (5.73 MB)
+FILE PATH:                  outputs/experiment4a_visual_audit.png (5.57 MB)
+PURPOSE:                    Full-resolution reconstructed 4-band GeoTIFF cubes, high-resolution vector layers, and visual diagnostic audits.
+WHETHER REQUIRED TO RUN:    No (Can be re-generated on-demand via `cli.py`, `evaluate_6way_benchmark.py`, and `app/satellite_enhancer.py`)
+WHETHER REQUIRED TO REPRODUCE RESULTS: Helpful as ground-truth verification artifacts
+INCLUDED IN ARCHIVE:        YES
+
+====================================================================================================
+END OF LARGE FILES MANIFEST
+====================================================================================================

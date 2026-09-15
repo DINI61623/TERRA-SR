@@ -157,7 +157,7 @@ class AgricultureIntelligenceModule(BaseIntelligenceModule):
                     affine_transform,
                     classification_name="Agricultural Crop Parcel Candidate",
                     class_id=1,
-                    min_area_pixels=10
+                    min_area_pixels=16
                 )
             )
             

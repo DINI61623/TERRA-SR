@@ -1,61 +1,71 @@
-# Satellite Oil Intelligence: Super-Resolution Mapping (SRM) & Downstream Spill Analytics
+# TERRA-SR: AOI-Driven Satellite Earth Intelligence & Super-Resolution Platform
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0%2B-ee4c2c.svg)](https://pytorch.org/)
+[![Copernicus](https://img.shields.io/badge/Copernicus-CDSE%20STAC%20%26%20Process%20API-darkgreen.svg)](https://dataspace.copernicus.eu/)
 [![SIH 2026](https://img.shields.io/badge/SIH%202026-SIH26142-brightgreen.svg)](https://www.sih.gov.in/)
 [![License](https://img.shields.io/badge/License-Proprietary-yellow.svg)]()
 
-A deep learning-powered satellite imagery enhancement and maritime intelligence platform developed for **Smart India Hackathon (SIH 2026)** — *Problem Statement SIH26142: Deep Learning Based Super Resolution Mapping (SRM)*.
+An end-to-end, deep learning-powered satellite earth observation and geospatial intelligence platform developed for **Smart India Hackathon (SIH 2026)** — *Problem Statement SIH26142: Deep Learning Based Super Resolution Mapping (SRM) from Medium Resolution Satellite Imageries*.
 
-The platform enhances Copernicus **Sentinel-2 L2A** 10m multispectral satellite imagery (B02 Blue, B03 Green, B04 Red, B08 NIR) toward **sub-4m (3.33m / 2.5m) Ground Sampling Distance (GSD)** with strict radiometric, spectral, and spatial fidelity, feeding directly into a downstream **Marine Oil Spill Intelligence & Anomaly Detection Pipeline**.
+TERRA-SR enables users to interactively define an **Area of Interest (AOI)** anywhere on Earth, search and filter the **Copernicus Data Space Ecosystem (CDSE)** catalog for optimal Sentinel-2 L2A scenes, automatically retrieve calibrated 4-band BOA multispectral data (`B02 Blue`, `B03 Green`, `B04 Red`, `B08 NIR`), super-resolve medium resolution (10m GSD) imagery to **5m / 3.33m GSD** using physics-informed neural networks, and execute operational downstream intelligence across **Water**, **Agriculture**, **Urban Infrastructure**, and **Disaster Assessment**.
 
 ---
 
-## 1. System Architecture
+## 1. End-to-End System Architecture
 
 ```mermaid
 graph TD
-    subgraph S2_Input ["1. Copernicus Sentinel-2 MSI Input"]
-        S2_10m["Sentinel-2 L2A (10m Native GSD)<br>B02 (Blue), B03 (Green), B04 (Red), B08 (NIR)"]
-        S2_Aux["Context Bands & Metadata<br>B05 (RedEdge), B11 (SWIR), SCL, Sun/View Angles"]
+    subgraph UI_AOI ["1. Interactive AOI & Search UI"]
+        Map["Leaflet Interactive Map<br>(Place Search, Lat/Lon, Geodesic Area Bounding Box)"]
+        Filters["Multi-Criteria Filter<br>(Cloud Cover %, AOI Overlap %, Date Range, Mission Purpose)"]
     end
 
-    subgraph SRM_Engine ["2. Multi-Scale Super-Resolution Mapping Engine"]
-        SRM_Model["PI-RCAN / HF-SRM / MS-RCAN Network<br>(Residual Groups + Channel Attention + Sub-Pixel Upsampling)"]
-        Loss_Comp["Composite Physics Loss: Charbonnier + Laplacian + SAM + NDVI + NLL"]
-        UQ_Head["Dual-Head Uncertainty Estimation<br>(Aleatoric Variance σ² + Softplus Activation)"]
-        NIR_Guide["Cross-Spectral NIR Edge Guidance Branch"]
-        SRM_Model --> Enhanced_Cube["Enhanced Multispectral Cube (<4m Target GSD: 3.33m / 2.5m)"]
-        SRM_Model --> UQ_Map["Spatial Uncertainty & Confidence Map"]
+    subgraph CDSE_Catalog ["2. Copernicus CDSE Integration"]
+        Auth["Copernicus Auth Manager<br>(OAuth2 Client Credentials & CDSE Password Token Caching)"]
+        STAC["CDSE STAC Catalog API<br>(catalogue.dataspace.copernicus.eu/stac/search)"]
+        Ranker["Explainable Scene Recommendation Engine<br>(Weighted Multi-Factor Suitability Scoring: 0-100)"]
+        ProcessAPI["Process API AOI Extractor<br>(4-Band Evalscript [B02, B03, B04, B08] + Offline Demo Mode)"]
     end
 
-    subgraph Downstream_OSI ["3. Downstream Oil-Spill Intelligence Module"]
-        Gating["Physics Preprocessing & Water Gating<br>MNDWI > 0, Shoreline Buffer (50m), Cloud/Shadow Projection"]
-        Indices["Spectral & Texture Descriptors<br>NDWI, SOSI (Emulsion), FAI (Algae Rejection), FI, GLCM"]
-        TempDiff["Temporal Baseline Differencing<br>ΔR = R_event - R_baseline (Static Bathymetry Suppression)"]
-        UNet["Semantic Segmentation Model<br>(U-Net with ResNet-34 Backbone)"]
-        AntiHal["Anti-Hallucination Safeguards<br>1. Dual-Scale S2 Verification | 2. Uncertainty Gating | 3. SAM ≤ 3.0°"]
+    subgraph SRM_Engine ["3. Super-Resolution Mapping (SRM) Engine"]
+        SRM_Model["PyTorch Neural SR Engine<br>(Residual CNN, MS-RCAN, HF-SRM, PI-RCAN, Bilinear)"]
+        QC["Strict Input & Spatial Validation<br>(10m GSD, EPSG:4326/UTM, BOA Radiometry [0, 1])"]
+        Enhanced_Cube["Enhanced Multispectral Cube (5m / 3.33m Reconstructed Detail)"]
     end
 
-    subgraph GIS_Export ["4. Actionable Maritime Intelligence Outputs"]
-        GeoTIFF["Classified Mask & Confidence GeoTIFFs"]
-        VectorGIS["Attributed Vector Slick Polygons (GeoJSON)"]
-        Summary["Incident Intelligence JSON (Area, Centroid, Slick Type)"]
-        WebUI["TERRA-SR Web Platform (Port 8080)"]
+    subgraph Earth_Intel ["4. Multi-Domain Earth Intelligence Suite"]
+        Water["Water Intelligence<br>(NDWI Shoreline Delineation, Perimeter, Waterbodies)"]
+        Agri["Agriculture Intelligence<br>(Field Boundary Sharpness, NDVI Canopy Vigor)"]
+        Urban["Urban Infrastructure<br>(Morphological Building Footprints, Road Networks)"]
+        Disaster["Disaster Management<br>(Sub-Pixel Flood Inundation & Burn Scar Assessment)"]
     end
 
-    S2_10m --> SRM_Model
-    Enhanced_Cube --> Gating
-    S2_Aux --> Gating
-    Gating --> Indices
-    Indices --> TempDiff
-    TempDiff --> UNet
-    UQ_Map --> AntiHal
-    S2_10m --> AntiHal
-    UNet --> AntiHal
-    AntiHal --> GeoTIFF
-    AntiHal --> VectorGIS
-    AntiHal --> Summary
+    subgraph Deliverables ["5. Actionable Geospatial Deliverables"]
+        GeoTIFF["4-Band SR GeoTIFF (Affine Georeferenced)"]
+        GeoJSON["Attributed Feature Vectors (GeoJSON)"]
+        Reports["Standardized Technical JSON Audit Reports"]
+        WebUI["Interactive Dashboard (Split-Slider & GIS Inspector on Port 8080)"]
+    end
+
+    Map --> Filters
+    Filters --> STAC
+    Auth --> STAC
+    STAC --> Ranker
+    Ranker --> ProcessAPI
+    ProcessAPI --> QC
+    QC --> SRM_Model
+    SRM_Model --> Enhanced_Cube
+    Enhanced_Cube --> Water
+    Enhanced_Cube --> Agri
+    Enhanced_Cube --> Urban
+    Enhanced_Cube --> Disaster
+    Enhanced_Cube --> GeoTIFF
+    Water --> GeoJSON
+    Agri --> GeoJSON
+    Urban --> GeoJSON
+    Disaster --> GeoJSON
+    Water --> Reports
     Enhanced_Cube --> WebUI
 ```
 
@@ -197,12 +207,14 @@ Executes 10-gate QC audit, trains multi-scale PI-RCAN, and generates `outputs/ex
 ## 8. Directory Layout
 
 ```text
-satellite-oil-intelligence/
+TERRA-SR/
 ├── app/
 │   ├── satellite_enhancer.py        # TERRA-SR interactive platform server (Port 8080)
 │   └── static/style.css             # Enterprise dark-mode geospatial design system
 ├── configs/                         # Physical degradation & sensor parameters
-├── data/raw/sentinel2/              # Sentinel-2 L2A BOA reflectance bands
+├── data/
+│   ├── raw/sentinel2/               # Sentinel-2 L2A BOA reflectance bands (B02, B03, B04, B08)
+│   └── processed/                   # Stacked calibrated 10m GeoTIFF ROIs
 ├── docs/                            # Research designs, specs, and benchmark audit docs
 ├── models/                          # Trained model checkpoints
 │   ├── final_sr/                    # Certified production package
@@ -214,17 +226,23 @@ satellite-oil-intelligence/
 │   ├── msrcan_experiment4d.pth      # MS-RCAN with Channel Attention (Exp 4D)
 │   ├── hfsrm_experiment4e.pth       # HF-SRM Residual Attention (Exp 4E)
 │   └── pircan_scale_x3.pth          # PI-RCAN Multi-Scale 3.33m GSD (Exp 5)
-├── outputs/                         # Benchmark JSONs, GeoTIFFs, and comparison figures
+├── outputs/                         # Benchmark JSONs, GeoTIFFs, GeoJSONs, and comparison figures
 ├── scripts/                         # Operational CLI tools & integration demos
-│   ├── demo_end_to_end_intelligence.py # SR (<4m) -> Oil Spill Intelligence Demo
-│   └── validate_experiment4_input.py   # PlanetScope contract validator
+│   ├── demo_end_to_end_intelligence.py # SR (<4m) -> Earth Intelligence Demo
+│   └── validate_experiment4_input.py   # Satellite contract validator
 ├── src/
-│   ├── oil_spill/                   # Downstream Marine Oil Spill Intelligence Module
-│   │   ├── indices.py               # NDWI, SOSI, FAI, Texture spectral descriptors
-│   │   ├── water_gating.py          # PyTorch morphological water & cloud gating
-│   │   ├── model.py                 # OilSpillUNet 8-channel segmentation network
-│   │   ├── anti_hallucination.py    # Uncertainty gating & dual-scale verification
-│   │   └── pipeline.py              # Master detection pipeline & GIS GeoJSON export
+│   ├── satellite/                   # Copernicus Data Space (CDSE) Ingestion & Catalog
+│   │   ├── copernicus_auth.py       # OAuth2 token manager & cached authentication
+│   │   ├── validators.py            # WGS84 bbox validation & geodesic area calculations
+│   │   ├── scene_ranker.py          # Explainable multi-factor scene suitability scoring (0-100)
+│   │   ├── catalog.py               # CDSE STAC search client & geometry filtering
+│   │   └── process.py               # Process API 4-band AOI retrieval & demo mode fallback
+│   ├── intelligence/                # Multi-Domain Earth Intelligence Suite
+│   │   ├── water.py                 # NDWI Shoreline delineation & waterbody morphology
+│   │   ├── agriculture.py           # Field boundary sharpness & canopy NDVI vigor
+│   │   ├── urban.py                 # Morphological building footprint & road network extraction
+│   │   ├── disaster.py              # Flood inundation differencing & burn scar severity
+│   │   └── orchestrator.py          # Unified intelligence orchestration & GeoJSON/JSON export
 │   ├── super_resolution/            # SR models, degradation, inference, and QC
 │   │   ├── pircan.py                # PI-RCAN Architecture with Uncertainty Head
 │   │   ├── hfsrm.py                 # HF-SRM Architecture
@@ -233,10 +251,52 @@ satellite-oil-intelligence/
 │   │   ├── degradation.py           # Optical PSF & Sensor Noise Engine
 │   │   ├── quality_control.py       # 10-Gate QC Validation Module
 │   │   ├── coregistration.py        # Sub-Pixel Cross-Sensor Alignment
-│   │   ├── inference.py             # Universal GeoTIFF Production Engine
-│   │   └── experiment5_pipeline.py  # End-to-end multi-scale pipeline
-│   └── utils/spatial_helpers.py     # Patch slicing & affine transform utilities
+│   │   └── inference.py             # Universal GeoTIFF Production Engine
+│   └── core/                        # Input validation & geospatial CRS utilities
+│       ├── input_validation.py      # Strict GSD, sensor, band, radiometry validation
+│       └── georeference.py          # Affine transform & WGS84/UTM reprojection
+├── tests/                           # Unit & regression test suites (44 tests)
+│   ├── test_satellite_acquisition.py# Copernicus auth, STAC search, ranker, & Process API tests
+│   ├── test_geo_accurate_intelligence.py
+│   ├── test_input_validation.py
+│   └── test_intelligence_pipeline.py
 ├── run_controlled_sr_study.py       # Master 5-experiment controlled study suite
 ├── evaluate_6way_benchmark.py       # Vectorized 6-way benchmark evaluation harness
 └── evaluate_multiscale_exp5.py      # Vectorized multi-scale evaluation suite
+```
+
+---
+
+## 9. Quickstart & Deployment
+
+### 9.1 Environment Configuration (Optional for Live Copernicus Access)
+
+Set the following environment variables for live CDSE access. If not provided, TERRA-SR automatically activates **Demo Mode** using prepared high-resolution Sentinel-2 scenes:
+
+```bash
+# Option A: CDSE OAuth2 Client Credentials (Recommended)
+export COPERNICUS_CLIENT_ID="your-client-id"
+export COPERNICUS_CLIENT_SECRET="your-client-secret"
+
+# Option B: CDSE User Credentials
+export CDSE_USERNAME="your-cdse-email"
+export CDSE_PASSWORD="your-cdse-password"
+
+# Optional: Carto Basemap API Key (Default: falls back cleanly to OpenStreetMap)
+export CARTO_API_KEY="your-carto-api-key"
+```
+
+### 9.2 Launch Application Server
+
+```bash
+# Launch server daemon on port 8080
+python app/satellite_enhancer.py
+```
+
+Navigate to `http://localhost:8080/` in your browser.
+
+### 9.3 Run Test Suites
+
+```bash
+python -m unittest discover tests
 ```

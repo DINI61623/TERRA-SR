@@ -164,7 +164,7 @@ class UrbanIntelligenceModule(BaseIntelligenceModule):
                     affine_transform,
                     classification_name="Candidate Urban Building Structure",
                     class_id=1,
-                    min_area_pixels=3
+                    min_area_pixels=8
                 )
             )
             geojson_features.extend(
@@ -173,7 +173,7 @@ class UrbanIntelligenceModule(BaseIntelligenceModule):
                     affine_transform,
                     classification_name="Candidate Road Corridor / Linear Infrastructure",
                     class_id=2,
-                    min_area_pixels=5
+                    min_area_pixels=12
                 )
             )
             

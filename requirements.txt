@@ -21,3 +21,9 @@ pillow
 # Deep Learning (Super Resolution & Oil Spill Detection)
 torch
 torchvision
+
+# Research Reporting & Mission Video Synthesis
+reportlab
+imageio
+imageio-ffmpeg
+

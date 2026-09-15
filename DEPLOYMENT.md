@@ -63,12 +63,16 @@ The server will bind to `http://0.0.0.0:8080/`.
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `PORT` | `8080` | HTTP port on which the daemon listens |
+| `PORT` | `8080` | HTTP port on which the daemon listens (binds to `0.0.0.0`) |
+| `COPERNICUS_CLIENT_ID` | *(Optional)* | Copernicus Data Space OAuth2 Client ID |
+| `COPERNICUS_CLIENT_SECRET` | *(Optional)* | Copernicus Data Space OAuth2 Client Secret |
 | `CDSE_USERNAME` | *(Optional)* | Copernicus Data Space Ecosystem API username |
 | `CDSE_PASSWORD` | *(Optional)* | Copernicus Data Space Ecosystem API password |
+| `CARTO_API_KEY` | *(Optional)* | Carto Positron basemap key (falls back to OSM automatically) |
 | `PLANET_API_KEY` | *(Optional)* | PlanetScope API key for research validation scenes |
 
-*(Note: Secrets are never baked into container images; pass environment variables via `-e` or `--env-file` if live satellite downloading is desired).*
+*(Note: Secrets are never baked into container images; pass environment variables via `-e` or `--env-file` if live satellite downloading is desired. If omitted, TERRA-SR runs seamlessly in Demo Mode).*
+
 
 ---
 

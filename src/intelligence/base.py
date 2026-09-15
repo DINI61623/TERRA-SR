@@ -25,17 +25,18 @@ except ImportError:
 def apply_percentile_stretch(img: np.ndarray, low_pct: float = 2.0, high_pct: float = 98.0) -> np.ndarray:
     """Normalizes image array to [0.0, 1.0] using percentile clipping per channel."""
     img = np.nan_to_num(img, nan=0.0, posinf=1.0, neginf=0.0)
+    sample = img[::4, ::4] if img.shape[0] > 256 and img.shape[1] > 256 else img
     if img.ndim == 2:
-        low = np.percentile(img, low_pct)
-        high = np.percentile(img, high_pct)
+        low = float(np.percentile(sample, low_pct))
+        high = float(np.percentile(sample, high_pct))
         if high - low > 1e-6:
             return np.clip((img - low) / (high - low), 0.0, 1.0)
         return np.clip(img, 0.0, 1.0)
     
     stretched = np.zeros_like(img, dtype=np.float32)
     for c in range(img.shape[-1]):
-        low = np.percentile(img[..., c], low_pct)
-        high = np.percentile(img[..., c], high_pct)
+        low = float(np.percentile(sample[..., c], low_pct))
+        high = float(np.percentile(sample[..., c], high_pct))
         if high - low > 1e-6:
             stretched[..., c] = np.clip((img[..., c] - low) / (high - low), 0.0, 1.0)
         else:
@@ -128,11 +129,14 @@ def extract_geojson_from_mask(
         return features
 
     mask_uint8 = (mask > 0).astype(np.uint8)
+    pixel_area = abs(affine_transform[0] * affine_transform[4]) if affine_transform else 25.0
+    min_area_thresh = min_area_pixels * pixel_area
+
     for geom, val in shapes(mask_uint8, mask=(mask_uint8 > 0), transform=affine_transform):
         if geom.get("type") == "Polygon" and geom.get("coordinates"):
             exterior_ring = geom["coordinates"][0]
             poly_area = calculate_polygon_area(exterior_ring)
-            if poly_area <= 0:
+            if poly_area < min_area_thresh:
                 continue
             features.append({
                 "type": "Feature",
