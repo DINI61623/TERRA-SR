@@ -1,22 +1,31 @@
-# Secrets & Environment Files
+# ==============================================================================
+# TERRA-SR — Docker Build Ignore Rules (.dockerignore)
+# Excludes sensitive secrets, large datasets, temporary caches, and local artifacts
+# ==============================================================================
+
+# Secrets & Environment Configuration
 .env
 .env.*
 *.env
 **/.env
 **/*.env
+!.env.example
 
-# Git & IDE Artifacts
+# Version Control & Repository History
 .git/
 .github/
 .gitignore
+
+# IDE & OS Artifacts
 .vscode/
 .idea/
 *.swp
 *.swo
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Python Bytecode & Test Caches
+# Python Bytecode, Compilations & Test Caches
 __pycache__/
 *.py[cod]
 *$py.class
@@ -31,16 +40,23 @@ venv/
 env/
 ENV/
 
-# Raw Datasets & Large Archives (Preserve data/processed/ in image)
+# Large Datasets & Archives (Preserve data/processed/ for demo execution)
 data/raw/
 data/samples/
 data/uploads/
 *.jp2
-*.tar.gz
+*.npy
 *.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+TERRA-SR_*.zip
 
-# Temporary Runtime & Output Directories
+# Runtime Outputs & Generated Deliverables
 outputs/
 scratch/
 *.log
 *.tmp
+app/static/*.png
