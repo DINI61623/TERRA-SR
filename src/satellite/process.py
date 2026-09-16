@@ -201,7 +201,9 @@ def _generate_demo_aoi_geotiff(
         'width': width,
         'crs': 'EPSG:4326',
         'transform': transform,
-        'compress': 'lzw'
+        'compress': 'deflate',
+        'predictor': 3,
+        'zlevel': 6
     }
 
     with rasterio.open(output_path, 'w', **profile) as dst:

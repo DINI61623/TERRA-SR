@@ -33,6 +33,34 @@ class ResearchPackageExporter:
         self.mission_dir_name = f"TERRA-SR_Mission_{self.result.mission_id}"
         self.package_dir = self.base_output_dir / self.mission_dir_name
 
+    def _export_compressed_geotiff(self, src_path: Union[str, Path], dst_path: Union[str, Path]):
+        """Transfers GeoTIFF ensuring lossless DEFLATE compression (predictor=3/2, zlevel=6)."""
+        src_p = Path(src_path)
+        dst_p = Path(dst_path)
+        if not src_p.exists():
+            return
+        try:
+            import rasterio
+            with rasterio.open(src_p) as src:
+                if src.compression and src.compression.name in ['DEFLATE', 'ZSTD']:
+                    shutil.copy2(src_p, dst_p)
+                    return
+                meta = src.meta.copy()
+                data = src.read()
+                pred = 3 if 'float' in str(meta.get('dtype', '')) else 2
+                meta.update({
+                    'compress': 'deflate',
+                    'predictor': pred,
+                    'zlevel': 6
+                })
+                with rasterio.open(dst_p, 'w', **meta) as dst:
+                    dst.write(data)
+                    for b_idx in range(1, src.count + 1):
+                        if src.descriptions and b_idx - 1 < len(src.descriptions) and src.descriptions[b_idx - 1]:
+                            dst.set_band_description(b_idx, src.descriptions[b_idx - 1])
+        except Exception:
+            shutil.copy2(src_p, dst_p)
+
     def export(self, result: Optional[AnalysisResult] = None, base_output_dir: Optional[Union[str, Path]] = None, make_zip: bool = True) -> Path:
         """Alias for build_package with optional override parameters."""
         if result is not None:
@@ -41,32 +69,27 @@ class ResearchPackageExporter:
             self.base_output_dir = Path(base_output_dir)
             self.mission_dir_name = f"TERRA-SR_Mission_{self.result.mission_id}"
             self.package_dir = self.base_output_dir / self.mission_dir_name
-        return self.build_package()
 
-    def build_package(self) -> Path:
-        """
-        Gathers and generates all artifacts in the mission directory, then builds a clean ZIP.
-        """
         self.package_dir.mkdir(parents=True, exist_ok=True)
         intel_dir = self.package_dir / "intelligence"
         intel_dir.mkdir(parents=True, exist_ok=True)
 
-        # 1. Copy Source & Enhanced GeoTIFFs
+        # 1. Copy Source & Enhanced GeoTIFFs (Losslessly Compressed)
         if self.result.source_image_path and Path(self.result.source_image_path).exists():
-            shutil.copy2(self.result.source_image_path, self.package_dir / "original_10m.tif")
+            self._export_compressed_geotiff(self.result.source_image_path, self.package_dir / "original_10m.tif")
         elif Path("data/processed/s2_10m_stacked_roi.tiff").exists():
-            shutil.copy2("data/processed/s2_10m_stacked_roi.tiff", self.package_dir / "original_10m.tif")
+            self._export_compressed_geotiff("data/processed/s2_10m_stacked_roi.tiff", self.package_dir / "original_10m.tif")
 
         if self.result.sr_image_path and Path(self.result.sr_image_path).exists():
-            shutil.copy2(self.result.sr_image_path, self.package_dir / "terra_sr_reconstruction.tif")
+            self._export_compressed_geotiff(self.result.sr_image_path, self.package_dir / "terra_sr_reconstruction.tif")
         elif Path("outputs/s2_enhanced_residualcnn.tiff").exists():
-            shutil.copy2("outputs/s2_enhanced_residualcnn.tiff", self.package_dir / "terra_sr_reconstruction.tif")
+            self._export_compressed_geotiff("outputs/s2_enhanced_residualcnn.tiff", self.package_dir / "terra_sr_reconstruction.tif")
 
         # 2. Copy Uncertainty Map if available
         if self.result.uncertainty.available and self.result.uncertainty.uncertainty_path:
             p = Path(self.result.uncertainty.uncertainty_path)
             if p.exists():
-                shutil.copy2(p, self.package_dir / "uncertainty.tif")
+                self._export_compressed_geotiff(p, self.package_dir / "uncertainty.tif")
 
         # 3. Difference Analysis Image
         static_dir = Path("app/static")
@@ -188,3 +211,5 @@ class ResearchPackageExporter:
 
         with open(readme_path, "w", encoding="utf-8") as f:
             f.write(content)
+
+    build_package = export

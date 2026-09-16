@@ -252,7 +252,10 @@ class ProductionInference:
                 'width': out_width,
                 'height': out_height,
                 'transform': out_transform,
-                'crs': crs
+                'crs': crs,
+                'compress': 'deflate',
+                'predictor': 3,
+                'zlevel': 6
             })
             
             with rasterio.open(output_path, 'w', **profile) as dst:

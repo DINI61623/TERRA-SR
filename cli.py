@@ -192,7 +192,10 @@ def main():
             count=hr_data.shape[0],
             dtype="float32",
             crs=src_crs,
-            transform=hr_transform
+            transform=hr_transform,
+            compress="deflate",
+            predictor=3,
+            zlevel=6
         ) as dst:
             for b_idx in range(hr_data.shape[0]):
                 dst.write(hr_data[b_idx], b_idx + 1)

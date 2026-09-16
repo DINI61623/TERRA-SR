@@ -363,7 +363,9 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
                 dtype='uint16',
                 crs=src_crs,
                 transform=hr_transform,
-                compress='lzw'
+                compress='deflate',
+                predictor=2,
+                zlevel=6
             ) as dst:
                 hr_uint16 = np.clip(hr_data * 10000.0, 0, 65535).astype(np.uint16)
                 dst.write(hr_uint16)
