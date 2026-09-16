@@ -13,6 +13,8 @@ import matplotlib as mpl
 from src.intelligence.base import (
     BaseIntelligenceModule,
     apply_percentile_stretch,
+    apply_percentile_stretch_uint8,
+    apply_colormap_lut,
     compute_gradient_sharpness,
     extract_geojson_from_mask,
     tensor_morph_dilation,
@@ -40,8 +42,10 @@ class AgricultureIntelligenceModule(BaseIntelligenceModule):
         """
         gy, gx = np.gradient(ndvi)
         grad_mag = np.sqrt(gx**2 + gy**2)
-        thresh = np.percentile(grad_mag, 92)
+        del gy, gx
+        thresh = np.percentile(grad_mag[::4, ::4], 92)
         edges = (grad_mag > thresh) & (ndvi > 0.15)
+        del grad_mag
         return tensor_morph_dilation(edges, kernel_size=3)
 
     def process(
@@ -63,7 +67,8 @@ class AgricultureIntelligenceModule(BaseIntelligenceModule):
         
         # True color RGB base
         sr_rgb = np.stack([sr_cube[2], sr_cube[1], sr_cube[0]], axis=-1)
-        sr_rgb_stretched = (apply_percentile_stretch(sr_rgb) * 255).astype(np.uint8)
+        sr_rgb_stretched = apply_percentile_stretch_uint8(sr_rgb)
+        del sr_rgb
         
         # 1. Compute NDVI
         sr_ndvi = self.compute_ndvi(sr_cube)
@@ -82,10 +87,10 @@ class AgricultureIntelligenceModule(BaseIntelligenceModule):
         field_edges = self.extract_field_boundaries(sr_ndvi)
         
         # 4. Visual Overlays
-        # A. Colormapped NDVI (Standard RdYlGn)
-        rdylgn = mpl.colormaps['RdYlGn']
+        # A. Colormapped NDVI (Standard RdYlGn via LUT)
         ndvi_norm = np.clip((sr_ndvi + 0.2) / 1.05, 0.0, 1.0)
-        ndvi_rgb = (rdylgn(ndvi_norm)[..., :3] * 255).astype(np.uint8)
+        ndvi_rgb = apply_colormap_lut(ndvi_norm, "RdYlGn")
+        del ndvi_norm
         
         # B. Field Boundary Overlay on True Color (Yellow-Orange Edges)
         boundary_overlay = sr_rgb_stretched.copy()

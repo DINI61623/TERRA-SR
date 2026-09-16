@@ -30,25 +30,32 @@ def create_cloud_mask(rgb_img, threshold=0.45):
     return mean_vis > threshold
 
 
+try:
+    import cv2
+    HAS_CV2 = True
+except ImportError:
+    HAS_CV2 = False
+
+
 def apply_shoreline_buffer(water_mask, buffer_pixels=5):
     """
-    Applies morphological erosion on the binary water mask using PyTorch 
+    Applies morphological erosion on the binary water mask
     to remove coastal surf zones and intertidal mudflats.
     """
-    if buffer_pixels <= 0:
+    if buffer_pixels <= 0 or not np.any(water_mask):
         return water_mask
         
-    t = torch.tensor(water_mask.astype(np.float32)).unsqueeze(0).unsqueeze(0)
-    kernel = torch.ones(1, 1, 3, 3, dtype=torch.float32)
-    
-    # Binary erosion: min filter via 1.0 - max_pool2d(1.0 - x)
-    for _ in range(buffer_pixels):
-        inverted = 1.0 - t
-        pooled = F.max_pool2d(inverted, kernel_size=3, stride=1, padding=1)
-        t = 1.0 - pooled
+    if HAS_CV2:
+        k = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+        return cv2.erode(water_mask.astype(np.uint8), k, iterations=buffer_pixels) > 0
         
-    eroded_water = (t.squeeze().numpy() > 0.5)
-    return eroded_water
+    with torch.inference_mode():
+        t = torch.from_numpy(water_mask.astype(np.float32)).unsqueeze(0).unsqueeze(0)
+        for _ in range(buffer_pixels):
+            inverted = 1.0 - t
+            pooled = F.max_pool2d(inverted, kernel_size=3, stride=1, padding=1)
+            t = 1.0 - pooled
+        return t.squeeze(0).squeeze(0).cpu().numpy() > 0.5
 
 
 def compute_valid_marine_aoi(refl_cube, ndwi_threshold=0.0, buffer_pixels=3):

@@ -14,6 +14,8 @@ import matplotlib as mpl
 from src.intelligence.base import (
     BaseIntelligenceModule,
     apply_percentile_stretch,
+    apply_percentile_stretch_uint8,
+    apply_colormap_lut,
     compute_gradient_sharpness,
     extract_geojson_from_mask,
     tensor_morph_opening,
@@ -234,18 +236,18 @@ class WaterIntelligenceModule(BaseIntelligenceModule):
         
         # 2. Visual Overlays
         # A. NDWI Colormap (Cividis/Blues)
-        norm_ndwi = (ndwi_map + 0.5) / 1.5
-        norm_ndwi = np.clip(norm_ndwi, 0.0, 1.0)
-        ndwi_cmap = mpl.colormaps.get_cmap("Blues")
-        ndwi_colored = (ndwi_cmap(norm_ndwi)[..., :3] * 255).astype(np.uint8)
+        norm_ndwi = np.clip((ndwi_map + 0.5) / 1.5, 0.0, 1.0)
+        ndwi_colored = apply_colormap_lut(norm_ndwi, "Blues")
+        del norm_ndwi
         
         # B. True Color Background
         sr_rgb = np.stack([sr_cube[2], sr_cube[1], sr_cube[0]], axis=-1)
-        sr_rgb_stretched = (apply_percentile_stretch(sr_rgb) * 255).astype(np.uint8)
+        sr_rgb_stretched = apply_percentile_stretch_uint8(sr_rgb)
+        del sr_rgb
         
         # C. Shoreline Overlay (Electric Cyan Outline)
         shoreline_overlay = sr_rgb_stretched.copy()
-        shoreline_overlay[water_mask] = np.clip(shoreline_overlay[water_mask] * 0.4 + np.array([0, 100, 220]) * 0.6, 0, 255).astype(np.uint8)
+        shoreline_overlay[water_mask] = np.clip(shoreline_overlay[water_mask].astype(np.float32) * 0.4 + np.array([0, 100, 220], dtype=np.float32) * 0.6, 0, 255).astype(np.uint8)
         shoreline_overlay[shoreline_mask] = [0, 255, 255]
         
         # D. Water Mask Overlay

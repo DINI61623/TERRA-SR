@@ -66,33 +66,43 @@ class OilSpillDetector:
         start_t = time.time()
         H, W = sr_cube.shape[1], sr_cube.shape[2]
         
-        # 1. Extract 8-Channel Feature Cube
-        feature_cube = extract_multispectral_feature_cube(sr_cube)
-        
-        # 2. Compute Physical Marine Water Mask
+        # 1. Compute Physical Marine Water Mask
         valid_water = compute_valid_marine_aoi(sr_cube, ndwi_threshold=0.0, buffer_pixels=3)
         
-        # 3. Model Inference (Tiled for fast memory-safe execution on large scenes)
+        # 2. Model Inference (Tiled for fast memory-safe execution on large scenes)
         raw_pred_mask = np.zeros((H, W), dtype=np.uint8)
         tile_size = 256
         with torch.inference_mode():
             if H <= tile_size and W <= tile_size:
+                feature_cube = extract_multispectral_feature_cube(sr_cube)
                 tensor_in = torch.from_numpy(feature_cube).unsqueeze(0).to(self.device)
                 logits = self.model(tensor_in)
                 probs = F.softmax(logits, dim=1).squeeze(0).cpu().numpy()
                 raw_pred_mask = np.argmax(probs, axis=0).astype(np.uint8)
-                del tensor_in, logits, probs
+                del tensor_in, logits, probs, feature_cube
             else:
+                pad = 2
                 for r in range(0, H, tile_size):
                     for c in range(0, W, tile_size):
                         r_end = min(r + tile_size, H)
                         c_end = min(c + tile_size, W)
-                        sub_feat = feature_cube[:, r:r_end, c:c_end]
-                        t_sub = torch.from_numpy(sub_feat).unsqueeze(0).to(self.device)
+                        r0 = max(0, r - pad)
+                        r1 = min(H, r_end + pad)
+                        c0 = max(0, c - pad)
+                        c1 = min(W, c_end + pad)
+                        sub_cube = sr_cube[:, r0:r1, c0:c1]
+                        sub_feat = extract_multispectral_feature_cube(sub_cube)
+                        dr0 = r - r0
+                        dr1 = dr0 + (r_end - r)
+                        dc0 = c - c0
+                        dc1 = dc0 + (c_end - c)
+                        crop_feat = sub_feat[:, dr0:dr1, dc0:dc1]
+                        
+                        t_sub = torch.from_numpy(crop_feat).unsqueeze(0).to(self.device)
                         l_sub = self.model(t_sub)
                         p_sub = F.softmax(l_sub, dim=1).squeeze(0).cpu().numpy()
                         raw_pred_mask[r:r_end, c:c_end] = np.argmax(p_sub, axis=0).astype(np.uint8)
-                        del t_sub, l_sub, p_sub
+                        del t_sub, l_sub, p_sub, sub_feat, crop_feat, sub_cube
 
         # Apply water mask constraint (oil can only exist on water)
         raw_pred_mask[~valid_water] = 0

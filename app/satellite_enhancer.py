@@ -70,6 +70,12 @@ try:
 except ImportError:
     HAS_RASTERIO = False
 
+try:
+    import cv2
+    HAS_CV2 = True
+except ImportError:
+    HAS_CV2 = False
+
 PORT = int(os.getenv("PORT", 8080))
 CARTO_API_KEY = os.getenv("CARTO_API_KEY", "").strip()
 STATIC_DIR = ROOT_DIR / "app" / "static"
@@ -191,8 +197,11 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
     start_t = time.time()
     import torch
     import torch.nn.functional as F
+    torch.set_num_threads(1)
+    torch.set_grad_enabled(False)
     from src.super_resolution.inference import ProductionInference, MODEL_REGISTRY
     from src.intelligence import run_intelligence_pipeline
+    from src.intelligence.base import apply_colormap_lut, apply_percentile_stretch_uint8
 
     actual_model = model_name
     if model_name not in MODEL_REGISTRY:
@@ -222,55 +231,57 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
     lr_rgb = np.stack([lr_data[2], lr_data[1], lr_data[0]], axis=-1)
     hr_rgb = np.stack([hr_data[2], hr_data[1], hr_data[0]], axis=-1)
     
-    p2, p98 = np.percentile(lr_rgb[::4, ::4], (2, 98))
-    lr_rgb_str = np.clip((lr_rgb - p2) / (p98 - p2 + 1e-7), 0, 1)
-    hr_rgb_str = np.clip((hr_rgb - p2) / (p98 - p2 + 1e-7), 0, 1)
+    lr_rgb_u8 = apply_percentile_stretch_uint8(lr_rgb)
+    hr_rgb_u8 = apply_percentile_stretch_uint8(hr_rgb)
+    del lr_rgb, hr_rgb
     
-    Image.fromarray((lr_rgb_str * 255).astype(np.uint8)).save(STATIC_DIR / "active_orig_rgb.png")
-    Image.fromarray((hr_rgb_str * 255).astype(np.uint8)).save(STATIC_DIR / "active_enh_rgb.png")
+    Image.fromarray(lr_rgb_u8).save(STATIC_DIR / "active_orig_rgb.png")
+    Image.fromarray(hr_rgb_u8).save(STATIC_DIR / "active_enh_rgb.png")
     
     # 2. False Color NIR
     lr_fc = np.stack([lr_data[3], lr_data[2], lr_data[1]], axis=-1)
     hr_fc = np.stack([hr_data[3], hr_data[2], hr_data[1]], axis=-1)
-    p2_fc, p98_fc = np.percentile(lr_fc[::4, ::4], (2, 98))
-    Image.fromarray((np.clip((lr_fc - p2_fc)/(p98_fc - p2_fc + 1e-7), 0, 1)*255).astype(np.uint8)).save(STATIC_DIR / "active_orig_fc.png")
-    Image.fromarray((np.clip((hr_fc - p2_fc)/(p98_fc - p2_fc + 1e-7), 0, 1)*255).astype(np.uint8)).save(STATIC_DIR / "active_enh_fc.png")
+    Image.fromarray(apply_percentile_stretch_uint8(lr_fc)).save(STATIC_DIR / "active_orig_fc.png")
+    Image.fromarray(apply_percentile_stretch_uint8(hr_fc)).save(STATIC_DIR / "active_enh_fc.png")
+    del lr_fc, hr_fc
     
     # 3. NDVI Maps
-    import matplotlib as mpl
-    ndvi_cmap = mpl.colormaps.get_cmap("RdYlGn")
-    lr_ndvi = np.clip((lr_data[3] - lr_data[2]) / (lr_data[3] + lr_data[2] + 1e-7), -1, 1)
-    hr_ndvi = np.clip((hr_data[3] - hr_data[2]) / (hr_data[3] + hr_data[2] + 1e-7), -1, 1)
-    Image.fromarray(ndvi_cmap((lr_ndvi + 1) / 2, bytes=True)[..., :3]).save(STATIC_DIR / "active_orig_ndvi.png")
-    Image.fromarray(ndvi_cmap((hr_ndvi + 1) / 2, bytes=True)[..., :3]).save(STATIC_DIR / "active_enh_ndvi.png")
+    lr_ndvi = np.clip((lr_data[3] - lr_data[2]) / (lr_data[3] + lr_data[2] + 1e-7), -1.0, 1.0)
+    hr_ndvi = np.clip((hr_data[3] - hr_data[2]) / (hr_data[3] + hr_data[2] + 1e-7), -1.0, 1.0)
+    Image.fromarray(apply_colormap_lut((lr_ndvi + 1.0) * 0.5, "RdYlGn")).save(STATIC_DIR / "active_orig_ndvi.png")
+    Image.fromarray(apply_colormap_lut((hr_ndvi + 1.0) * 0.5, "RdYlGn")).save(STATIC_DIR / "active_enh_ndvi.png")
     del lr_ndvi, hr_ndvi
     
     # 4. NDWI Maps
-    ndwi_cmap = mpl.colormaps.get_cmap("Blues")
-    lr_ndwi = np.clip((lr_data[1] - lr_data[3]) / (lr_data[1] + lr_data[3] + 1e-7), -1, 1)
-    hr_ndwi = np.clip((hr_data[1] - hr_data[3]) / (hr_data[1] + hr_data[3] + 1e-7), -1, 1)
-    Image.fromarray(ndwi_cmap((lr_ndwi + 0.5) / 1.5, bytes=True)[..., :3]).save(STATIC_DIR / "active_orig_ndwi.png")
-    Image.fromarray(ndwi_cmap((hr_ndwi + 0.5) / 1.5, bytes=True)[..., :3]).save(STATIC_DIR / "active_enh_ndwi.png")
+    lr_ndwi = np.clip((lr_data[1] - lr_data[3]) / (lr_data[1] + lr_data[3] + 1e-7), -1.0, 1.0)
+    hr_ndwi = np.clip((hr_data[1] - hr_data[3]) / (hr_data[1] + hr_data[3] + 1e-7), -1.0, 1.0)
+    Image.fromarray(apply_colormap_lut(np.clip((lr_ndwi + 0.5) / 1.5, 0.0, 1.0), "Blues")).save(STATIC_DIR / "active_orig_ndwi.png")
+    Image.fromarray(apply_colormap_lut(np.clip((hr_ndwi + 0.5) / 1.5, 0.0, 1.0), "Blues")).save(STATIC_DIR / "active_enh_ndwi.png")
     del lr_ndwi, hr_ndwi
     
     # 5. Edge Energy Maps
-    edge_cmap = mpl.colormaps.get_cmap("magma")
     lr_edge = compute_sobel_gradient(lr_data[2])
     hr_edge = compute_sobel_gradient(hr_data[2])
-    Image.fromarray(edge_cmap(lr_edge, bytes=True)[..., :3]).save(STATIC_DIR / "active_orig_edge.png")
-    Image.fromarray(edge_cmap(hr_edge, bytes=True)[..., :3]).save(STATIC_DIR / "active_enh_edge.png")
+    Image.fromarray(apply_colormap_lut(lr_edge, "magma")).save(STATIC_DIR / "active_orig_edge.png")
+    Image.fromarray(apply_colormap_lut(hr_edge, "magma")).save(STATIC_DIR / "active_enh_edge.png")
     
     # 6. Real Difference Analysis Layer
-    lr_tensor = torch.from_numpy(lr_rgb_str).permute(2, 0, 1).unsqueeze(0)
-    lr_upscaled = F.interpolate(lr_tensor, size=(hr_rgb_str.shape[0], hr_rgb_str.shape[1]), mode='bilinear', align_corners=False).squeeze(0).permute(1, 2, 0).numpy()
-    diff_rgb = np.abs(hr_rgb_str - lr_upscaled)
-    mean_abs_diff = float(np.mean(diff_rgb))
-    del lr_tensor, lr_upscaled
+    if HAS_CV2:
+        lr_upscaled_u8 = cv2.resize(lr_rgb_u8, (hr_rgb_u8.shape[1], hr_rgb_u8.shape[0]), interpolation=cv2.INTER_LINEAR)
+    else:
+        with torch.inference_mode():
+            t = torch.from_numpy(lr_rgb_u8).permute(2, 0, 1).unsqueeze(0).float()
+            up = F.interpolate(t, size=(hr_rgb_u8.shape[0], hr_rgb_u8.shape[1]), mode='bilinear', align_corners=False)
+            lr_upscaled_u8 = np.clip(up.squeeze(0).permute(1, 2, 0).numpy(), 0, 255).astype(np.uint8)
+            del t, up
+            
+    diff_u8 = np.abs(hr_rgb_u8.astype(np.int16) - lr_upscaled_u8.astype(np.int16)).astype(np.uint8)
+    del lr_upscaled_u8
+    mean_abs_diff = float(np.mean(diff_u8)) / 255.0
+    diff_mag = np.mean(diff_u8, axis=-1, dtype=np.float32) / 255.0
+    del diff_u8
     
-    diff_cmap = mpl.colormaps.get_cmap("inferno")
-    diff_mag = np.mean(diff_rgb, axis=-1)
-    del diff_rgb
-    diff_vis = diff_cmap(np.clip(diff_mag * 3.5, 0, 1), bytes=True)[..., :3]
+    diff_vis = apply_colormap_lut(np.clip(diff_mag * 3.5, 0.0, 1.0), "inferno")
     del diff_mag
     Image.fromarray(diff_vis).save(STATIC_DIR / "active_orig_diff.png")
     Image.fromarray(diff_vis).save(STATIC_DIR / "active_enh_diff.png")
@@ -325,7 +336,7 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
             print(f"[Warning] Intelligence domain {dom}: {e}", flush=True)
             
     # Regional Crops for Quick Jump
-    H, W = lr_rgb_str.shape[:2]
+    H, W = lr_rgb_u8.shape[:2]
     crop_h = max(32, min(128, H // 4))
     crop_w = max(32, min(128, W // 4))
     
@@ -343,11 +354,12 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
     }
     for c_name, (r1, r2, c1, c2) in crops.items():
         if r2 > r1 and c2 > c1:
-            sub_lr = lr_rgb_str[r1:r2, c1:c2]
-            sub_hr = hr_rgb_str[r1*scale_mult:r2*scale_mult, c1*scale_mult:c2*scale_mult]
+            sub_lr = lr_rgb_u8[r1:r2, c1:c2]
+            sub_hr = hr_rgb_u8[r1*scale_mult:r2*scale_mult, c1*scale_mult:c2*scale_mult]
             if sub_lr.size > 0 and sub_hr.size > 0:
-                Image.fromarray((sub_lr * 255).astype(np.uint8)).save(STATIC_DIR / f"crop_{c_name}_orig.png")
-                Image.fromarray((sub_hr * 255).astype(np.uint8)).save(STATIC_DIR / f"crop_{c_name}_enh.png")
+                Image.fromarray(sub_lr).save(STATIC_DIR / f"crop_{c_name}_orig.png")
+                Image.fromarray(sub_hr).save(STATIC_DIR / f"crop_{c_name}_enh.png")
+    del lr_rgb_u8, hr_rgb_u8
         
     # Save freshly enhanced 4-band GeoTIFF
     out_tiff_path = OUTPUTS_DIR / f"s2_enhanced_{actual_model.lower()}.tiff"
@@ -367,8 +379,10 @@ def generate_layer_assets(input_tiff_path, model_name="ResidualCNN") -> Dict[str
                 predictor=2,
                 zlevel=6
             ) as dst:
-                hr_uint16 = np.clip(hr_data * 10000.0, 0, 65535).astype(np.uint16)
-                dst.write(hr_uint16)
+                for b_idx in range(4):
+                    band_uint16 = np.clip(hr_data[b_idx] * 10000.0, 0, 65535).astype(np.uint16)
+                    dst.write(band_uint16, b_idx + 1)
+                    del band_uint16
                 dst.set_band_description(1, 'B02_Blue_SR')
                 dst.set_band_description(2, 'B03_Green_SR')
                 dst.set_band_description(3, 'B04_Red_SR')

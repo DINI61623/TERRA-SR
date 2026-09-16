@@ -13,6 +13,8 @@ import matplotlib as mpl
 from src.intelligence.base import (
     BaseIntelligenceModule,
     apply_percentile_stretch,
+    apply_percentile_stretch_uint8,
+    apply_colormap_lut,
     compute_gradient_sharpness,
     extract_geojson_from_mask,
     tensor_morph_dilation,
@@ -41,37 +43,48 @@ class UrbanIntelligenceModule(BaseIntelligenceModule):
         # High-frequency structural texture
         gy, gx = np.gradient(red)
         edge_energy = np.sqrt(gx**2 + gy**2)
-        edge_norm = edge_energy / (np.percentile(edge_energy, 98) + 1e-7)
+        del gy, gx
+        edge_norm = edge_energy / (np.percentile(edge_energy[::4, ::4], 98) + 1e-7)
+        del edge_energy
         
         raw_builtup = (red - nir) / (red + nir + 1e-7) + 0.5 * edge_norm
+        del edge_norm
         # Suppress water and dense canopy
         raw_builtup[ndwi > 0.05] = -1.0
         raw_builtup[ndvi > 0.35] = -1.0
+        del ndvi, ndwi
         return np.clip(raw_builtup, -1.0, 1.0)
 
-    def extract_candidate_features(self, cube: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def extract_candidate_features(self, cube: np.ndarray, builtup_idx: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Extracts candidate built-up clusters, road/linear corridor candidates, and density map.
         """
         red = cube[2]
-        builtup_idx = self.compute_builtup_index(cube)
+        if builtup_idx is None:
+            builtup_idx = self.compute_builtup_index(cube)
         
         # 1. Candidate Building / Roof Structures (Multi-scale morphological top-hat)
         top_hat = tensor_white_tophat(red, kernel_size=5)
-        top_hat_norm = top_hat / (np.percentile(top_hat, 99) + 1e-7)
+        top_hat_norm = top_hat / (np.percentile(top_hat[::4, ::4], 99) + 1e-7)
+        del top_hat
         building_candidates = (builtup_idx > 0.05) & (top_hat_norm > 0.25)
+        del top_hat_norm
         building_candidates = tensor_morph_opening(building_candidates, kernel_size=3)
         
         # 2. Road / Linear Corridor Candidates (Ridge-like high-gradient elongation)
         gy, gx = np.gradient(red)
         grad_mag = np.sqrt(gx**2 + gy**2)
-        grad_norm = grad_mag / (np.percentile(grad_mag, 98) + 1e-7)
+        del gy, gx
+        grad_norm = grad_mag / (np.percentile(grad_mag[::4, ::4], 98) + 1e-7)
+        del grad_mag
         linear_candidates = (grad_norm > 0.30) & (builtup_idx > -0.2) & (~building_candidates)
+        del grad_norm
         linear_candidates = tensor_morph_closing(linear_candidates, kernel_size=3)
         
         # 3. Urban Density Heatmap (Continuous spatial Gaussian smoothing)
         density_raw = (builtup_idx > 0.0).astype(np.float32)
         density_heatmap = tensor_gaussian_blur(density_raw, kernel_size=15, sigma=4.0)
+        del density_raw
         density_heatmap = density_heatmap / (np.max(density_heatmap) + 1e-7)
         
         return building_candidates, linear_candidates, density_heatmap
@@ -95,16 +108,18 @@ class UrbanIntelligenceModule(BaseIntelligenceModule):
         
         # True color RGB base
         sr_rgb = np.stack([sr_cube[2], sr_cube[1], sr_cube[0]], axis=-1)
-        sr_rgb_stretched = (apply_percentile_stretch(sr_rgb) * 255).astype(np.uint8)
+        sr_rgb_stretched = apply_percentile_stretch_uint8(sr_rgb)
+        del sr_rgb
         
         # 1. Compute Built-Up Index & Candidate Structures
         builtup_idx = self.compute_builtup_index(sr_cube)
-        building_mask, road_mask, density_map = self.extract_candidate_features(sr_cube)
+        builtup_pixels = int(np.sum(builtup_idx > 0.0))
+        building_mask, road_mask, density_map = self.extract_candidate_features(sr_cube, builtup_idx=builtup_idx)
+        del builtup_idx
         
         # 2. Visual Overlays
-        # A. Built-up Heatmap Overlay (Inferno Colormap)
-        inferno = mpl.colormaps['inferno']
-        density_rgb = (inferno(density_map)[..., :3] * 255).astype(np.uint8)
+        # A. Built-up Heatmap Overlay (Inferno Colormap via LUT)
+        density_rgb = apply_colormap_lut(np.clip(density_map, 0.0, 1.0), "inferno")
         
         # B. Candidate Features Overlay (Cyan = Roads, Amber/Gold = Candidate Buildings)
         feature_overlay = sr_rgb_stretched.copy()
@@ -144,7 +159,6 @@ class UrbanIntelligenceModule(BaseIntelligenceModule):
             
         # 4. Quantitative Statistics
         total_pixels = H * W
-        builtup_pixels = int(np.sum(builtup_idx > 0.0))
         candidate_building_pixels = int(np.sum(building_mask))
         candidate_road_pixels = int(np.sum(road_mask))
         
@@ -228,6 +242,6 @@ class UrbanIntelligenceModule(BaseIntelligenceModule):
             "masks": {
                 "building_candidates": building_mask,
                 "road_candidates": road_mask,
-                "builtup_index": builtup_idx
+                "density_map": density_map
             }
         }

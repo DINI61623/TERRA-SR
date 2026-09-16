@@ -18,6 +18,8 @@ import matplotlib as mpl
 from src.intelligence.base import (
     BaseIntelligenceModule,
     apply_percentile_stretch,
+    apply_percentile_stretch_uint8,
+    apply_colormap_lut,
     compute_gradient_sharpness,
     extract_geojson_from_mask,
     tensor_morph_dilation,
@@ -257,14 +259,16 @@ class DisasterIntelligenceModule(BaseIntelligenceModule):
         
         # 2. Visual Overlays
         sr_rgb = np.stack([sr_cube[2], sr_cube[1], sr_cube[0]], axis=-1)
-        sr_rgb_stretched = (apply_percentile_stretch(sr_rgb) * 255).astype(np.uint8)
+        sr_rgb_stretched = apply_percentile_stretch_uint8(sr_rgb)
         
         # A. Flood Inundation Overlay (Azure Blue + Crimson Breached Roads)
         flood_overlay = sr_rgb_stretched.copy()
-        flood_overlay[flood_mask] = np.clip(
-            flood_overlay[flood_mask] * 0.35 + np.array([0, 160, 255]) * 0.65, 0, 255
-        ).astype(np.uint8)
-        flood_overlay[inundated_infra] = [255, 30, 80]
+        if np.any(flood_mask):
+            flood_overlay[flood_mask] = np.clip(
+                flood_overlay[flood_mask].astype(np.float32) * 0.35 + np.array([0.0, 160.0, 255.0], dtype=np.float32) * 0.65, 0.0, 255.0
+            ).astype(np.uint8)
+        if np.any(inundated_infra):
+            flood_overlay[inundated_infra] = [255, 30, 80]
         
         # B. Wildfire Burn Scar Severity Map
         burn_severity_rgb = np.zeros((H, W, 3), dtype=np.uint8)
@@ -275,8 +279,15 @@ class DisasterIntelligenceModule(BaseIntelligenceModule):
         
         # C. Disaster Impact Perimeter
         boundary_overlay = sr_rgb_stretched.copy()
-        boundary_overlay[flood_mask] = np.clip(boundary_overlay[flood_mask] * 0.5 + np.array([0, 180, 255]) * 0.5, 0, 255).astype(np.uint8)
-        boundary_overlay[burn_high | burn_mod] = np.clip(boundary_overlay[burn_high | burn_mod] * 0.5 + np.array([255, 100, 0]) * 0.5, 0, 255).astype(np.uint8)
+        if np.any(flood_mask):
+            boundary_overlay[flood_mask] = np.clip(
+                boundary_overlay[flood_mask].astype(np.float32) * 0.5 + np.array([0.0, 180.0, 255.0], dtype=np.float32) * 0.5, 0.0, 255.0
+            ).astype(np.uint8)
+        burn_mask_comb = burn_high | burn_mod
+        if np.any(burn_mask_comb):
+            boundary_overlay[burn_mask_comb] = np.clip(
+                boundary_overlay[burn_mask_comb].astype(np.float32) * 0.5 + np.array([255.0, 100.0, 0.0], dtype=np.float32) * 0.5, 0.0, 255.0
+            ).astype(np.uint8)
         boundary_overlay[flood_boundary] = [255, 230, 0]
         
         # 3. Geo-Accurate Polygons
