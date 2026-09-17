@@ -8,6 +8,7 @@ dependencies = [
     "requests",
     "python-dotenv",
     "numpy",
+    "scipy",
     "pandas",
     "matplotlib",
     "shapely",

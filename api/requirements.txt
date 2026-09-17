@@ -1,3 +1,4 @@
+# TERRA-SR Vercel Serverless Function Dependencies
 # API and Configuration
 requests
 python-dotenv
@@ -27,4 +28,3 @@ torchvision
 reportlab
 imageio
 imageio-ffmpeg
-
