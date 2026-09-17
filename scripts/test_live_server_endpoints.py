@@ -46,29 +46,28 @@ def test_endpoints():
     print(f"GET /health -> Status {code_health} (Body: {body_health.strip()}, Latency: {(time.time()-t0)*1000:.1f}ms)")
     assert code_health == 200, f"GET /health failed: {code_health}"
     
-    # 3. POST /api/enhance
-    mem_before = get_process_rss_mb()
-    print(f"Memory before POST /api/enhance: {mem_before:.2f} MB")
-    
-    t0 = time.time()
-    req = urllib.request.Request(
-        f"{server_url}/api/enhance",
-        data=json.dumps({"model": "ResidualCNN"}).encode('utf-8'),
-        headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(req) as resp:
-        code_enhance = resp.getcode()
-        body_enhance = json.loads(resp.read().decode('utf-8'))
+    # 3. POST /api/enhance with multiple production models
+    models_to_test = ["ResidualCNN", "Bilinear", "MSRCAN", "HFSRM", "PIRCAN"]
+    for m in models_to_test:
+        mem_before = get_process_rss_mb()
+        t0 = time.time()
+        req = urllib.request.Request(
+            f"{server_url}/api/enhance",
+            data=json.dumps({"model": m}).encode('utf-8'),
+            headers={"Content-Type": "application/json"}
+        )
+        with urllib.request.urlopen(req) as resp:
+            code_enhance = resp.getcode()
+            body_enhance = json.loads(resp.read().decode('utf-8'))
+            
+        enhance_time = time.time() - t0
+        mem_after = get_process_rss_mb()
         
-    enhance_time = time.time() - t0
-    mem_after = get_process_rss_mb()
-    
-    print(f"POST /api/enhance -> Status {code_enhance} (Latency: {enhance_time:.2f}s)")
-    print(f"Memory after POST /api/enhance: {mem_after:.2f} MB (Peak Working Set Delta: +{mem_after - mem_before:.2f} MB)")
-    print("Metrics returned:")
-    print(json.dumps(body_enhance.get("metrics", {}), indent=2))
-    assert code_enhance == 200, f"POST /api/enhance failed: {code_enhance}"
-    assert body_enhance.get("status") == "SUCCESS", f"Enhance payload status: {body_enhance.get('status')}"
+        print(f"POST /api/enhance ({m:<12}) -> Status {code_enhance} (Latency: {enhance_time:.2f}s, Peak RSS: {mem_after:.2f} MB)")
+        assert code_enhance == 200, f"POST /api/enhance failed for {m}: {code_enhance}"
+        assert body_enhance.get("status") == "SUCCESS", f"Enhance payload status: {body_enhance.get('status')}"
+        assert "metrics" in body_enhance, "Missing metrics in enhance response"
+        print(f"   Metrics: PSNR={body_enhance['metrics']['psnr']} dB | SSIM={body_enhance['metrics']['ssim']}")
     
     print("\n--- ALL LOCAL LIVE SERVER ENDPOINT TESTS PASSED ---")
 
