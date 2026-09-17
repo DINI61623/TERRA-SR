@@ -11,7 +11,6 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-# Attempt to load UniversalRequestHandler and capture any import traceback
 IMPORT_ERROR = None
 IMPORT_TRACEBACK = None
 UniversalRequestHandler = None
@@ -39,11 +38,8 @@ class CaseInsensitiveDict(dict):
         raise KeyError(key)
 
 
-def wsgi_dispatch(environ, start_response):
-    """Bridge WSGI invocation to canonical TERRA-SR UniversalRequestHandler routing."""
+def get_handler_class():
     global UniversalRequestHandler, IMPORT_ERROR, IMPORT_TRACEBACK
-
-    # If import failed at load time, attempt once more or return detailed diagnostics
     if UniversalRequestHandler is None:
         try:
             from app.satellite_enhancer import UniversalRequestHandler as _URH
@@ -53,9 +49,13 @@ def wsgi_dispatch(environ, start_response):
         except Exception as _e:
             IMPORT_ERROR = str(_e)
             IMPORT_TRACEBACK = traceback.format_exc()
+    return UniversalRequestHandler
 
-    # If still failed, return the exact Python traceback as JSON
-    if UniversalRequestHandler is None:
+
+def wsgi_dispatch(environ, start_response):
+    """Bridge WSGI invocation to canonical TERRA-SR UniversalRequestHandler routing."""
+    handler_cls = get_handler_class()
+    if handler_cls is None:
         err_payload = json.dumps({
             "status": "IMPORT_ERROR",
             "error": IMPORT_ERROR,
@@ -73,7 +73,6 @@ def wsgi_dispatch(environ, start_response):
     query = environ.get("QUERY_STRING", "")
     full_path = f"{path}?{query}" if query else path
 
-    # Translate WSGI environment to HTTP headers
     headers_dict = CaseInsensitiveDict()
     for k, v in environ.items():
         if k.startswith("HTTP_"):
@@ -83,7 +82,6 @@ def wsgi_dispatch(environ, start_response):
             header_name = k.replace("_", "-")
             headers_dict[header_name] = v
 
-    # Read incoming request body if present
     try:
         content_length = int(environ.get("CONTENT_LENGTH") or 0)
     except (ValueError, TypeError):
@@ -96,13 +94,11 @@ def wsgi_dispatch(environ, start_response):
     else:
         rfile = io.BytesIO(b"")
 
-    # Response tracking buffers
     output_buffer = io.BytesIO()
     response_headers = []
     response_status = [200, "OK"]
 
-    # Instantiate UniversalRequestHandler instance without creating a network socket
-    handler_instance = object.__new__(UniversalRequestHandler)
+    handler_instance = object.__new__(handler_cls)
     handler_instance.command = method
     handler_instance.path = full_path
     handler_instance.request_version = "HTTP/1.1"
@@ -144,7 +140,6 @@ def wsgi_dispatch(environ, start_response):
     handler_instance.end_headers = end_headers
     handler_instance.send_bytes_response = send_bytes_response
 
-    # Dispatch request through TERRA-SR routing
     try:
         if method == "GET":
             handler_instance.do_GET()
@@ -168,37 +163,56 @@ def wsgi_dispatch(environ, start_response):
         }, indent=2).encode("utf-8")
         send_bytes_response(err_msg, "application/json", status_code=500)
 
-    # Emit standard WSGI response
     status_line = f"{response_status[0]} {response_status[1]}"
     start_response(status_line, response_headers)
     return [output_buffer.getvalue()]
 
 
+# Base class for BaseHTTPRequestHandler compatibility
 if UniversalRequestHandler is not None:
-    # Hook UniversalRequestHandler to support both socket-based HTTP and Vercel WSGI entrypoints
-    _orig_new = UniversalRequestHandler.__new__
-    _orig_init = UniversalRequestHandler.__init__
-
-    def _universal_new(cls, *args, **kwargs):
-        if len(args) == 2 and callable(args[1]):
-            return wsgi_dispatch(args[0], args[1])
-        return _orig_new(cls)
-
-    def _universal_init(self, *args, **kwargs):
-        if len(args) == 2 and callable(args[1]):
-            return
-        return _orig_init(self, *args, **kwargs)
-
-    UniversalRequestHandler.__new__ = _universal_new
-    UniversalRequestHandler.__init__ = _universal_init
-    handler = UniversalRequestHandler
-    app = UniversalRequestHandler
+    _Base = UniversalRequestHandler
 else:
-    class FallbackHandler(http.server.BaseHTTPRequestHandler):
-        def __call__(self, environ, start_response):
-            return wsgi_dispatch(environ, start_response)
-    handler = FallbackHandler
-    app = FallbackHandler
+    _Base = http.server.SimpleHTTPRequestHandler
+
+
+class VercelUniversalHandler(_Base):
+    """Universal handler supporting both BaseHTTPRequestHandler socket invocation
+    and WSGI application protocol."""
+
+    def __call__(self, environ, start_response):
+        return wsgi_dispatch(environ, start_response)
+
+    def do_GET(self):
+        handler_cls = get_handler_class()
+        if handler_cls is not None and issubclass(handler_cls, http.server.BaseHTTPRequestHandler):
+            return handler_cls.do_GET(self)
+        self.send_response(500)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        err_msg = json.dumps({
+            "status": "IMPORT_ERROR",
+            "error": IMPORT_ERROR,
+            "traceback": IMPORT_TRACEBACK
+        }, indent=2).encode("utf-8")
+        self.wfile.write(err_msg)
+
+    def do_POST(self):
+        handler_cls = get_handler_class()
+        if handler_cls is not None and issubclass(handler_cls, http.server.BaseHTTPRequestHandler):
+            return handler_cls.do_POST(self)
+        self.send_response(500)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        err_msg = json.dumps({
+            "status": "IMPORT_ERROR",
+            "error": IMPORT_ERROR,
+            "traceback": IMPORT_TRACEBACK
+        }, indent=2).encode("utf-8")
+        self.wfile.write(err_msg)
+
+
+handler = UniversalRequestHandler if UniversalRequestHandler is not None else VercelUniversalHandler
+app = handler
 
 if __name__ == "__main__":
     from app.satellite_enhancer import run_server
