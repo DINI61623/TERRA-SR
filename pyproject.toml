@@ -4,6 +4,25 @@ version = "1.0.0"
 description = "Deep Learning Based Super Resolution Mapping from Medium Resolution Satellite Imagery"
 readme = "README.md"
 requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "python-dotenv",
+    "numpy",
+    "pandas",
+    "matplotlib",
+    "shapely",
+    "fiona",
+    "pyproj",
+    "rasterio",
+    "geopandas",
+    "opencv-python-headless",
+    "pillow",
+    "torch",
+    "torchvision",
+    "reportlab",
+    "imageio",
+    "imageio-ffmpeg"
+]
 
 [tool.vercel]
 entrypoint = "api.index:handler"
